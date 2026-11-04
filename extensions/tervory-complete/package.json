@@ -1,0 +1,78 @@
+{
+  "name": "tervory-complete",
+  "displayName": "Tervory Complete",
+  "publisher": "tervory",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "main": "./dist/extension.cjs",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "npm run build && node test/run.cjs"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "3.1.0",
+    "esbuild": "0.28.2"
+  },
+  "contributes": {
+    "configuration": {
+      "title": "Tervory",
+      "properties": {
+        "tervory.complete.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Completion"
+        },
+        "tervory.complete.paidMode": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "auto"
+          ],
+          "default": "ask",
+          "description": "Ask / Auto",
+          "scope": "application"
+        },
+        "tervory.complete.region": {
+          "type": "string",
+          "enum": [
+            "us-east",
+            "za"
+          ],
+          "default": "us-east",
+          "scope": "application"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "tervory.complete.signIn",
+        "title": "Tervory: Sign in"
+      },
+      {
+        "command": "tervory.complete.signOut",
+        "title": "Tervory: Sign out"
+      },
+      {
+        "command": "tervory.complete.request",
+        "title": "Tervory: Complete"
+      },
+      {
+        "command": "tervory.complete.togglePaid",
+        "title": "Tervory: Ask / Auto"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "editor.action.inlineSuggest.commit",
+        "key": "tab",
+        "when": "inlineSuggestionVisible && !editorTabMovesFocus"
+      }
+    ]
+  }
+}
