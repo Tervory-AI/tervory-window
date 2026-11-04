@@ -9,17 +9,20 @@ Tervory CLI. The other built-in components live under `extensions/`:
 
 - `tervory-complete`: autocomplete and inline edits.
 - `tervory-index`: private local project indexing.
-- `tervory-agents`: project rules, background agents and PR review.
+- `tervory-agents`: background agents and PR review.
+
+Autocomplete and inline edits read the project rules.
 
 Build scripts discover every component under `extensions/`. Code-OSS source is
 fetched at a fixed commit; the whole fork is never vendored here.
-# Tervory desktop window
 
 The window reuses Microsoft Code-OSS (MIT), pinned by release **and commit** in
 `upstream.json`. Only build scripts, product patches, the built-in extension and
 license notices are tracked here; the upstream source stays in `.tmp/code-oss-source`.
 
-Use the Node version in `upstream.json`. Run `npm ci`, then
+Use the Node version in `upstream.json` and install rustup. The build installs the
+exact Rust toolchain recorded there and compiles the upstream tunnel CLI from the
+same Code-OSS commit, using checksum-verified prebuilt OpenSSL. Run `npm ci`, then
 `npm run prepare-source` and `npm run build`.
 Build on the target OS/CPU: Windows x64/arm64, macOS x64/arm64, Linux x64/arm64.
 Code-OSS requires its native build prerequisites (C++ toolchain, Python; GTK,
