@@ -54,6 +54,12 @@ export async function scenario(name) {
         return Response.json({answer:'',receipt,requests:[{name:'run_command',arguments:{command:'echo panel-command'}}]});
       }
       if(!body.continuation)round=0;
+      if(name==='ask'){
+        const requests=round++===0?[{name:'list_files',arguments:{}}]:round===2?[{name:'read_file',arguments:{path:'file.txt'}}]:[];
+        if(round===2)assert(body.tool_results.some(item=>item.name==='list_files'&&item.output.includes('file.txt')));
+        if(!requests.length)assert(body.tool_results.some(item=>item.output.includes('old')));
+        return Response.json({answer:requests.length?'':'Project answer.',receipt,requests});
+      }
       const requests=round++===0?[{name:'read_file',arguments:{path:'file.txt'}},{name:'read_file',arguments:{path:'second.txt'}}]:round===2?[{name:'propose_edit',arguments:{diff:patch('file.txt')+patch('second.txt')}}]:[];
       return Response.json({answer:'',receipt,requests});
     }
@@ -62,7 +68,7 @@ export async function scenario(name) {
   try {
     const result=await activate(vscode,context);
     api.resolveWebviewView({webview:{options:{},postMessage:value=>{outputs.push(value);if(value.type==='approval')queueMicrotask(()=>message({type:'approve',id:value.id,approved:prompt==='Confirm'}));},onDidReceiveMessage:fn=>{message=fn;return{dispose(){}};}},onDidDispose:fn=>{disposed=fn;return{dispose(){}};}});
-    if(name==='ask') {await message({type:'ask',text:'Explain this project'});assert(outputs.some(x=>x.text?.includes('Project answer.')));assert(outputs.some(x=>x.text?.includes('0.01')));}
+    if(name==='ask') {const running=message({type:'code',text:'Explain this project'});await until(()=>outputs.some(x=>x.type==='ready'));assert(outputs.some(x=>x.text?.includes('Project answer.')));assert(outputs.some(x=>x.text?.includes('0.01')));await message({type:'cancel'});await running;}
     else if(name==='plugins'){await message({type:'plugins'});assert(outputs.some(x=>x.type==='plugins'&&JSON.stringify(x.items).includes('list_issues')&&JSON.stringify(x.items).includes('Installed · 1.0.0')));}
     else if(name==='offline'){await message({type:'code',text:'explain'});assert(outputs.some(x=>x.type==='error'&&x.offline));assert.equal(calls.length,1);}
     else if(name==='command'||name==='command-deny'){

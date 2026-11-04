@@ -138,6 +138,7 @@ test('webhook secret is copied only after the explicit copy choice', async t => 
 test('finished reviews link to their GitHub PR', async t => {
   const f = fixture(t);
   const groups = await f.provider.getChildren();
+  assert.deepEqual(groups.map(group => group.label), ['Running', 'Finished']);
   const finished = await f.provider.getChildren(groups[1]);
   assert.equal(finished[0].label, 'alice/other #8');
   await f.commands.get('tervory.agents.open')(finished[0]);

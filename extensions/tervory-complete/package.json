@@ -52,7 +52,7 @@
     "commands": [
       {
         "command": "tervory.complete.signIn",
-        "title": "Tervory: Sign in"
+        "title": "Tervory: Trigger sign-in"
       },
       {
         "command": "tervory.complete.signOut",
