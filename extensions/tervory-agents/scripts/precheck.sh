@@ -2,6 +2,14 @@
 # Reuse Tank's founder-mandated security gates until the window root has its own.
 set -euo pipefail
 security_source=$(cd "${1:?Pass the tervory-tank checkout containing the shared security scripts}" && pwd)
+runtime=${2:-docker}
+case "$runtime" in docker|podman) ;; *) printf 'Use docker or podman.\n' >&2; exit 2;; esac
+runtime_options=''
+image='semgrep/semgrep:1.182.1@sha256:c8f333ab0ad103d2bcd3b55cbeabcfc556bfeaa7446ba18594a4320f3807ffc9'
+if [ "$runtime" = podman ]; then
+ runtime_options="--userns keep-id --user $(id -u):$(id -g) --cap-drop ALL --security-opt no-new-privileges --env SEMGREP_SETTINGS_FILE=/tmp/semgrep-settings.yml --env XDG_CACHE_HOME=/tmp/semgrep-cache"
+ image='docker.io/semgrep/semgrep@sha256:c8f333ab0ad103d2bcd3b55cbeabcfc556bfeaa7446ba18594a4320f3807ffc9'
+fi
 root=$(git rev-parse --show-toplevel)
 folder=$(basename "$root")
 cd "$root"
@@ -19,11 +27,11 @@ cat > "$bin/semgrep" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 if [ "\${1:-}" = scan ]; then shift; set -- scan --jobs 1 "\$@"; fi
-exec docker run --rm --label tervory.test=1 --name "${folder}-semgrep-\$\$" \\
+exec $runtime run $runtime_options --rm --label tervory.test=1 --name "${folder}-semgrep-\$\$" \\
  --volume "$root:$root" --volume "$TMPDIR:$TMPDIR" --workdir "\$PWD" \\
  --env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env "GIT_CONFIG_VALUE_0=$root" \\
  --entrypoint semgrep \\
- semgrep/semgrep:1.182.1@sha256:c8f333ab0ad103d2bcd3b55cbeabcfc556bfeaa7446ba18594a4320f3807ffc9 "\$@"
+ $image "\$@"
 EOF
 chmod +x "$bin/semgrep"
 export PATH="$bin:$PATH"
