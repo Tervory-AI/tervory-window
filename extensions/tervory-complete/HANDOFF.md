@@ -2,7 +2,9 @@
 
 This new repository has a minimal root precheck which reuses Tank's existing
 pinned scanners and finding policy. Its Gitleaks config uses defaults with no
-exceptions or fingerprints.
+exceptions or fingerprints. Local scanners run as the checkout user and their
+containers are removed after scans, including incomplete ones, so baseline
+checkouts preserve source ownership.
 
 Server integrations stay in tervory-tank; the extension workflow lives here.
 The founder-approved local precheck change scopes Semgrep to changed files only;

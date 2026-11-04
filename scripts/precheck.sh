@@ -21,7 +21,7 @@ fi
   git diff --name-only -z "$base"
   git ls-files --others --exclude-standard -z
 } | sort -zu > "$TMPDIR/semgrep-targets"
-mkdir -p "$TMPDIR/semgrep-empty"
+mkdir -p "$TMPDIR/semgrep-empty" "$TMPDIR/semgrep-home"
 cat > "$bin/semgrep" <<SH
 #!/usr/bin/env bash
 set -euo pipefail
@@ -33,7 +33,9 @@ done
 [ \${#targets[@]} -gt 0 ] || targets=("$TMPDIR/semgrep-empty")
 args=("\$@")
 if [ "\${args[-1]}" = . ]; then unset 'args[-1]'; fi
-exec docker run --rm --label tervory.test=1 --name "${folder}-semgrep-\$\$" \\
+container_name="${folder}-semgrep-\$\$"
+printf '%s\n' "\$container_name" > "$TMPDIR/semgrep-container"
+exec docker run --user "$(id -u):$(id -g)" --env HOME="$TMPDIR/semgrep-home" --rm --label tervory.test=1 --name "\$container_name" \\
   --volume "$root:$root" --volume "$TMPDIR:$TMPDIR" --workdir "\$PWD" \\
   --env GIT_CONFIG_COUNT=1 --env GIT_CONFIG_KEY_0=safe.directory --env "GIT_CONFIG_VALUE_0=$root" \\
   --entrypoint semgrep \\
@@ -43,7 +45,15 @@ chmod +x "$bin/semgrep"
 export PATH="$bin:$PATH" GITHUB_WORKSPACE="$root" RUNNER_TEMP="$TMPDIR"
 mkdir -p "$TMPDIR/security-results"
 for tool in gitleaks semgrep; do
-  python3 "$scanner" "$tool" --base "$base" --output "$TMPDIR/security-results"
+  scan_status=0
+  python3 "$scanner" "$tool" --base "$base" --output "$TMPDIR/security-results" || scan_status=$?
+  if [ "$tool" = semgrep ] && [ -f "$TMPDIR/semgrep-container" ]; then
+    read -r scanner_container < "$TMPDIR/semgrep-container"
+    case "$scanner_container" in
+      "$folder"-semgrep-*) docker rm -f "$scanner_container" >/dev/null 2>&1 || true ;;
+    esac
+  fi
+  [ "$scan_status" -eq 0 ] || exit "$scan_status"
 done
 # A new repository may have no dependency inputs on main yet. Scan all HEAD
 # dependencies in that case and block every finding, including lower severities.
