@@ -27,7 +27,7 @@ def case(scenario):
             self.assertIn('PASS ' + scenario.split(':', 1)[1] + ':', proof)
             return
         if scenario.startswith('agents:'):
-            result = subprocess.run(['node', '--test', '--test-name-pattern=' + scenario.split(':', 1)[1], 'extensions/tervory-agents/test/extension.test.cjs'], cwd=ROOT, check=True, timeout=60, capture_output=True, text=True)
+            result = subprocess.run(['node', '--test', '--test-reporter=tap', '--test-name-pattern=' + scenario.split(':', 1)[1], 'extensions/tervory-agents/test/extension.test.cjs'], cwd=ROOT, check=True, timeout=60, capture_output=True, text=True)
             self.assertIn('# pass 1', result.stdout)
             self.assertIn('# fail 0', result.stdout)
             return
