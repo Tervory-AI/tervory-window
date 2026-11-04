@@ -59,7 +59,7 @@ python3 - <<'PY_DEPS'
 import json
 import subprocess
 from pathlib import Path
-files = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+files = subprocess.check_output(['git', 'ls-files', '-z', '--', 'extensions/tervory-agents/']).decode().split('\0')
 for name in filter(None, files):
     path = Path(name)
     if path.name == 'package.json':

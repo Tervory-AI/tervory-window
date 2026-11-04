@@ -4,7 +4,7 @@ const Module = require('node:module');
 const path = require('node:path');
 const manifest = require('../package.json');
 
-function fixture(t, { invalidToken = false, prUrl = 'https://github.com/alice/other/pull/8' } = {}) {
+function fixture(t, { invalidToken = false, region = 'us-east', prUrl = 'https://github.com/alice/other/pull/8' } = {}) {
   const commands = new Map();
   const requests = [];
   const inputs = [];
@@ -16,7 +16,7 @@ function fixture(t, { invalidToken = false, prUrl = 'https://github.com/alice/ot
   const subscriptions = [];
   const errors = [];
   let provider;
-  const secrets = new Map([['tervory.personal', invalidToken ? 'refused' : ['tv1', 'us-east', 'a'.repeat(32), 'b'.repeat(43)].join('.')]]);
+  const secrets = new Map([['tervory.personal', invalidToken ? 'refused' : ['tv1', region, 'a'.repeat(32), 'b'.repeat(43)].join('.')]]);
   const vscode = {
     EventEmitter: class { event() {} fire() {} dispose() {} },
     TreeItem: class { constructor(label, state) { this.label = label; this.collapsibleState = state; } },
@@ -35,13 +35,13 @@ function fixture(t, { invalidToken = false, prUrl = 'https://github.com/alice/ot
   };
   const activeId = '12345678-1234-1234-1234-123456789abc';
   t.mock.method(global, 'fetch', async (url, options) => {
-    assert.equal(new URL(url).origin, 'https://app.tervory.com');
+    assert.equal(new URL(url).origin, region === 'us-east' ? 'https://app.tervory.com' : 'https://za.tervory.com');
     const request = { path: new URL(url).pathname, method: options.method, body: options.body ? JSON.parse(options.body) : null };
     requests.push(request);
     let data = null;
     if (request.path.endsWith('/vault/github') && options.method === 'GET') data = ['github'];
     if (request.path.endsWith('/receipt')) data = { status: 'recorded', totals: { cost_usd: .01, baseline_cost_usd: .03, saved_usd: .02 }, rows: [{ cost_usd: .01, tokens_in: 3, tokens_out: 5, ledger_id: 'should-not-be-rendered' }] };
-    if (request.path.endsWith('/webhooks')) data = { enabled: request.body.enabled, url: 'https://app.tervory.com/v1/window-agents/webhooks/fixture', secret: 'fixture-webhook-secret' };
+    if (request.path.endsWith('/webhooks')) data = { enabled: request.body.enabled, url: 'https://app.tervory.com/v1/command/window-agents/webhooks/fixture', secret: 'fixture-webhook-secret' };
     if (request.path.endsWith('/jobs') && options.method === 'GET') data = [
       { job_id: activeId, repo: 'alice/project', status: 'running' },
       { job_id: '87654321-4321-4321-4321-cba987654321', repo: 'alice/other', status: 'done', kind: 'review', pull_number: 8, result: { pr_url: prUrl } },
@@ -80,7 +80,7 @@ test('GitHub credential is entered in a masked vault form', async t => {
   f.inputs.push('github', value);
   await f.commands.get('tervory.agents.vault')();
   assert.equal(f.inputOptions[1].password, true);
-  assert.deepEqual(f.requests[0], { path: '/v1/window-agents/vault/github', method: 'PUT', body: { name: 'github', value } });
+  assert.deepEqual(f.requests[0], { path: '/v1/command/window-agents/vault/github', method: 'POST', body: { name: 'github', value } });
 });
 
 test('one inline cancel action applies only to queued or running tasks', async t => {
@@ -93,7 +93,7 @@ test('one inline cancel action applies only to queued or running tasks', async t
   assert.equal(finished[0].contextValue, 'tervoryAgent.pr');
   assert.equal(manifest.contributes.menus['view/item/context'].filter(x => x.command === 'tervory.agents.cancel').length, 1);
   await f.commands.get('tervory.agents.cancel')(items[0]);
-  assert.equal(f.requests.at(-1).path, `/v1/window-agents/jobs/${f.activeId}/cancel`);
+  assert.equal(f.requests.at(-1).path, `/v1/command/window-agents/jobs/${f.activeId}/cancel`);
 });
 
 test('an invalid Tervory credential cannot select an arbitrary server', async t => {
@@ -109,7 +109,7 @@ test('PR review sends a named credential and a validated PR number', async t => 
   f.inputs.push('alice/project', '8');
   await f.commands.get('tervory.agents.review')();
   const request = f.requests.at(-1);
-  assert.equal(request.path, '/v1/window-agents/reviews');
+  assert.equal(request.path, '/v1/command/window-agents/reviews');
   assert.equal(request.body.credential_name, 'github');
   assert.equal(request.body.pull_number, 8);
   assert.equal(request.body.model, undefined);
@@ -162,4 +162,11 @@ test('PR links cannot open another host or a script URL', async t => {
   assert.equal(finished[0].command, undefined);
   await f.commands.get('tervory.agents.open')({ prUrl: 'https://other.example/alice/project/pull/8' });
   assert.deepEqual(f.opened, []);
+});
+
+
+test('ZA uses its local public Tank while Boston uses the existing command proxy', async t => {
+  const f = fixture(t, { region: 'za' });
+  await f.provider.getChildren();
+  assert.equal(f.requests[0].path, '/v1/window-agents/jobs');
 });

@@ -42,3 +42,7 @@ cost, baseline, savings and token counts. Running jobs remain visible even when
 more than 100 newer jobs have finished. History shows up to 100 recent finished
 jobs and 100 active/queued jobs, plus any additional running jobs. Final group,
 empty, error, PR-link and receipt-detail frames are still needed from Figma.
+
+Boston uses the existing command public proxy; ZA uses its local public Tank.
+The server rejects reused webhook delivery IDs and deduplicates distinct
+deliveries for the same PR head. Worker endpoints have no public proxy path.
