@@ -1,0 +1,31 @@
+name: window-agents
+on:
+  push:
+    branches: ['codex/window-agents']
+    paths: ['extensions/tervory-agents/**']
+  pull_request:
+    paths: ['extensions/tervory-agents/**']
+permissions:
+  contents: read
+jobs:
+  extension:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '22'
+      - name: Existing Tank security tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: Tervory-AI/tervory-tank
+          ref: 15220461fd5eb0e983562c9cb5dd3f5ae17ed32a
+          path: .tmp/tank-security
+          sparse-checkout: .github/scripts
+      - name: Extension tests and pinned security gates
+        run: |
+          mv .tmp/tank-security "$RUNNER_TEMP/tank-security"
+          bash extensions/tervory-agents/scripts/precheck.sh "$RUNNER_TEMP/tank-security"

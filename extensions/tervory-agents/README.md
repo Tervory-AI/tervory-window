@@ -11,7 +11,12 @@ lifetime. Only a fresh `worker/window-<job-id>` branch is published, followed by
 draft PR on the selected repository. The worker never merges. Auto routing and
 usage receipts come from the existing command code-turn and policy ladder.
 
-Visible strings are plain placeholders awaiting `docs/figma/window/REGISTER.md`.
+The window owner’s `docs/figma/window/REGISTER.md` now links the source agent register.
+Background-agent frames are `557:2423` / `557:2513`, PR review is `557:2603` /
+`557:2692`, and receipt/savings is `557:4501` / `557:4592` in Figma file
+`ZnphBOJU6657tohGLD3IzS` (Tank PR #685, `REGISTER-AGENT.md`). These are the
+visual references for the panel integration; this native tree/form implementation
+retains plain wording placeholders for states without an exact approved frame.
 Frames needed: task launch (repository, credential name, prompt), named GitHub
 vault credential form, task progress with one Cancel action, failure/interrupted
 state, PR result with receipt link, and running/finished task list. Additional frames: PR review launch (repository, PR number, credential name),
