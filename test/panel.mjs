@@ -1,5 +1,6 @@
 // External boundaries only: real panel, real CLI and CodeFolder execute below.
 import assert from 'node:assert/strict';
+import {fileURLToPath} from 'node:url';
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -58,11 +59,11 @@ export async function scenario(name) {
   try {
     const result=await activate(vscode,context);
     api.resolveWebviewView({webview:{options:{},postMessage:value=>{outputs.push(value);if(value.type==='approval')queueMicrotask(()=>message({type:'approve',id:value.id,approved:prompt==='Confirm'}));},onDidReceiveMessage:fn=>{message=fn;return{dispose(){}};}},onDidDispose:fn=>{disposed=fn;return{dispose(){}};}});
-    if(name==='ask') {await message({type:'ask',text:'read this project'});assert(outputs.some(x=>x.text?.includes('Project answer.')));assert(outputs.some(x=>x.text?.includes('0.01')));}
+    if(name==='ask') {await message({type:'ask',text:'Explain this project'});assert(outputs.some(x=>x.text?.includes('Project answer.')));assert(outputs.some(x=>x.text?.includes('0.01')));}
     else if(name==='plugins'){await message({type:'plugins'});assert(outputs.some(x=>x.type==='plugins'&&JSON.stringify(x.items).includes('list_issues')));}
     else if(name==='offline'){await message({type:'code',text:'explain'});assert(outputs.some(x=>x.type==='error'&&x.offline));assert.equal(calls.length,1);}
     else if(name==='command'||name==='command-deny'){
-      if(name==='command-deny')prompt='Cancel';const running=message({type:'code',text:'run the command'});
+      if(name==='command-deny')prompt='Cancel';const running=message({type:'code',text:'echo panel-command'});
       await until(()=>outputs.some(x=>x.type==='ready'));
       assert(outputs.some(x=>x.type==='approval'&&x.action==='Run'));
       if(name==='command'){assert(outputs.some(x=>x.type==='command'&&x.state==='finished'&&x.code===0));assert(terminals.some(x=>x.includes('panel-command')));}
@@ -85,7 +86,7 @@ export async function scenario(name) {
       assert.equal(await readFile(join(root,'file.txt'),'utf8'),'old\n');
       await message({type:'preview',name:'file.txt'});assert.equal(previews.at(-1)[0],'vscode.diff');
       if(name==='stale'){await writeFile(join(root,'file.txt'),'outside change\n');await message({type:'accept',hunks:[0,1]});await until(()=>outputs.some(x=>x.type==='ready'));assert.equal(await readFile(join(root,'file.txt'),'utf8'),'outside change\n');assert.equal(await readFile(join(root,'second.txt'),'utf8'),'old\n');}
-      else if(name==='cancel-review'){await message({type:'cancel'});assert.equal(await readFile(join(root,'file.txt'),'utf8'),'old\n');}
+      else if(name==='cancel-review'){await message({type:'newChat'});assert.equal(await readFile(join(root,'file.txt'),'utf8'),'old\n');}
       else if(name==='reject') {await message({type:'accept',hunks:[]});await until(()=>outputs.filter(x=>x.type==='ready').length>=1);assert.equal(await readFile(join(root,'file.txt'),'utf8'),'old\n');}
       else {
         await message({type:'accept',hunks:name==='partial'?[0]:[0,1]});
@@ -101,4 +102,4 @@ export async function scenario(name) {
     globalThis.fetch=original;await rm(root,{recursive:true,force:true});
   }
 }
-if(process.argv[2]){await scenario(process.argv[2]);console.log('passed '+process.argv[2]);}
+if(process.argv[1]===fileURLToPath(import.meta.url)&&process.argv[2]){await scenario(process.argv[2]);console.log('passed '+process.argv[2]);}

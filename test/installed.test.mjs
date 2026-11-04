@@ -14,6 +14,9 @@ test('actual integrated built-ins install with loadable CLI, fonts and entry poi
    await access(resolve(folder,pkg.main));
   }
   const panel=resolve(out,'extensions/extension');
+  const manifest=JSON.parse(await readFile(resolve(panel,'package.json')));
+  assert.equal(manifest.contributes.viewsContainers.secondarySidebar[0].id,'tervory');
+  await access(resolve(panel,manifest.contributes.viewsContainers.secondarySidebar[0].icon));
   const {html}=await import(pathToFileURL(resolve(panel,'src/extension.mjs')).href);
   assert(html('fixture').includes('Trigger sign-in'));
   const {cli}=await import(pathToFileURL(resolve(panel,'src/session.mjs')).href);

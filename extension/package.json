@@ -3,7 +3,7 @@
   "version": "0.1.0", "private": true, "engines": {"vscode": "^1.100.0"},
   "main": "./extension.cjs", "activationEvents": ["onStartupFinished"],
   "contributes": {
-    "viewsContainers": {"auxiliarybar": [{"id": "tervory", "title": "Tervory", "icon": "media/tervory-logo.png"}]},
+    "viewsContainers": {"secondarySidebar": [{"id": "tervory", "title": "Tervory", "icon": "media/tervory-logo.png"}]},
     "views": {"tervory": [{"id": "tervory.panel", "name": "Tervory", "type": "webview"}]},
     "commands": [{"command": "tervory.focus", "title": "Tervory: Open panel"}, {"command": "tervory.signIn", "title": "Tervory: Trigger sign-in"}]
   },
