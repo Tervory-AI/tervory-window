@@ -1,3 +1,4 @@
+import { wizardBitmap } from './brand.mjs';
 import { vendorCli } from './vendor-cli.mjs';
 import { applyProduct } from './product.mjs';
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
@@ -30,6 +31,12 @@ export async function prepare() {
   if (JSON.parse(await readFile(resolve(source, 'package.json'))).version !== pin.release) throw Error('Wrong Code-OSS release.');
   const product = applyProduct(JSON.parse(await readFile(resolve(source, 'product.json'))));
   await writeFile(resolve(source, 'product.json'), JSON.stringify(product, null, 2) + '\n');
+  // Tervory supplies the agent. The upstream Copilot build requires Microsoft's
+  // publishing environment and must not be compiled or shipped in this product.
+  const gulpfile = resolve(source, 'build/gulpfile.vscode.ts');
+  const tasks = await readFile(gulpfile, 'utf8');
+  const patched = tasks.replace(', compileCopilotExtensionBuildTask', '').replace(/^\s*compileCopilotExtensionBuildTask,\r?\n/gm, '').replace(/^\s*prepareCopilotRipgrepShimTask\(platform, arch, destinationFolderName\)\r?\n/gm, '');
+  await writeFile(gulpfile, patched);
   const logo = await readFile(resolve(root, 'vendor/brand/tervory-logo.png'));
   // Format conversion of the exact supplied logo, never a replacement drawing.
   const ico = createICO(logo, 0, 0, true); const icns = createICNS(logo, 0, 0);
@@ -40,6 +47,9 @@ export async function prepare() {
   const installer = resolve(source, 'build/win32/code.iss');
   let setup = await readFile(installer, 'utf8');
   setup = setup.replaceAll('AppPublisher=Microsoft Corporation', 'AppPublisher=Tervory').replaceAll('https://code.visualstudio.com/', 'https://tervory.com/');
+  setup = setup.replace(/^WizardImageFile=.*$/m, 'WizardImageFile="{#RepoDir}\\resources\\win32\\tervory-wizard-large.bmp"').replace(/^WizardSmallImageFile=.*$/m, 'WizardSmallImageFile="{#RepoDir}\\resources\\win32\\tervory-wizard-small.bmp"');
+  await writeFile(resolve(source, 'resources/win32/tervory-wizard-large.bmp'), wizardBitmap(logo, true));
+  await writeFile(resolve(source, 'resources/win32/tervory-wizard-small.bmp'), wizardBitmap(logo));
   await writeFile(installer, setup);
   await writeFile(resolve(root, 'CODE-OSS.LICENSE'), (await readFile(resolve(source, 'LICENSE.txt'), 'utf8')).replaceAll('\r\n', '\n'));
   return source;

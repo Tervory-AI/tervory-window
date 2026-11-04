@@ -11,8 +11,8 @@ CASES.update({14:'editor:autocomplete',15:'editor:inline edit',16:'editor:projec
 
 @lru_cache(maxsize=1)
 def editor_proof():
-    result = subprocess.run(['node', 'test/editor-suite.mjs'], cwd=ROOT, env=dict(os.environ, TMPDIR=str(ROOT / '.tmp')), check=True, timeout=300, capture_output=True, text=True)
-    return result.stdout + result.stderr
+    result = subprocess.run(['node', 'test/editor-suite.mjs'], cwd=ROOT, env=dict(os.environ, TMPDIR=str(ROOT / '.tmp')), check=False, timeout=300, capture_output=True, text=True)
+    return result.returncode, result.stdout + result.stderr
 
 class WindowAcceptance(unittest.TestCase):
     def test_one_row_one_case(self):
@@ -22,7 +22,9 @@ class WindowAcceptance(unittest.TestCase):
 def case(scenario):
     def run(self):
         if scenario.startswith('editor:'):
-            self.assertIn('PASS ' + scenario.split(':', 1)[1] + ':', editor_proof())
+            code, proof = editor_proof()
+            self.assertEqual(code, 0, proof)
+            self.assertIn('PASS ' + scenario.split(':', 1)[1] + ':', proof)
             return
         if scenario.startswith('agents:'):
             result = subprocess.run(['node', '--test', '--test-name-pattern=' + scenario.split(':', 1)[1], 'extensions/tervory-agents/test/extension.test.cjs'], cwd=ROOT, check=True, timeout=60, capture_output=True, text=True)
