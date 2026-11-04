@@ -8,7 +8,7 @@ const platform = process.platform; const arch = process.arch;
 if (!['win32', 'darwin', 'linux'].includes(platform) || !['x64', 'arm64'].includes(arch)) throw Error('Unsupported build host');
 if (process.versions.node.split('.')[0] !== pin.node.split('.')[0]) throw Error(`Use Node ${pin.node}`);
 await prepare();
-const npm = (args, cwd = source) => execFileSync(process.execPath, [process.env.npm_execpath, ...args], { cwd, stdio: 'inherit', env: { ...process.env, VSCODE_QUALITY: 'stable', VSCODE_ARCH: arch, BUILD_SOURCEVERSION: pin.commit } });
+const npm = (args, cwd = source) => execFileSync(process.execPath, [process.env.npm_execpath, ...args], { cwd, stdio: 'inherit', env: { ...process.env, VSCODE_QUALITY: 'oss', VSCODE_ARCH: arch, BUILD_SOURCEVERSION: pin.commit } });
 // Code-OSS postinstall builds its platform-native modules. Do not disable scripts.
 npm(['ci']);
 npm(['ci', '--ignore-scripts', '--no-audit', '--no-fund'], resolve(root, 'vendor/cli'));
