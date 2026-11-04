@@ -19,4 +19,5 @@ launch, webhook opt-in and review result frames will be listed with Gate 2.
 
 Validation: from this extension directory, run `bash scripts/precheck.sh /path/to/tervory-tank`.
 The window main currently contains its ownership README; this extension check reuses
-Tank's pinned gitleaks, Semgrep and OSV gates without rule or file exclusions.
+Tank's pinned gitleaks and Semgrep gates without rule or file exclusions. The check
+enforces that this component has no external dependencies; OSV has no inputs yet.

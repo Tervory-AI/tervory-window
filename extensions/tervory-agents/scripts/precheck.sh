@@ -44,7 +44,25 @@ cleanup() {
  if [ "$created_ignore" = 1 ]; then rm .gitleaksignore; fi
 }
 trap cleanup EXIT
-for check in gitleaks semgrep osv; do
+# This component has no external packages: VS Code and Node provide its APIs.
+# OSV cannot scan an empty dependency baseline. Enforce that invariant instead of
+# inventing a lockfile or treating a scanner failure as a clean report.
+python3 - <<'PY_DEPS'
+import json
+import subprocess
+from pathlib import Path
+files = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+for name in filter(None, files):
+    path = Path(name)
+    if path.name == 'package.json':
+        package = json.loads(path.read_text())
+        if any(package.get(key) for key in ('dependencies','devDependencies','optionalDependencies','peerDependencies')):
+            raise SystemExit('External dependencies require the repository dependency scan before pushing.')
+    if 'requirements' in path.name and path.suffix in ('.txt', '.lock'):
+        raise SystemExit('External dependencies require the repository dependency scan before pushing.')
+print('OSV: no external dependencies; dependency-free manifests verified.')
+PY_DEPS
+for check in gitleaks semgrep; do
  python3 "$security_source/.github/scripts/security_scan.py" "$check" --base "$base" --output "$TMPDIR/security-results"
 done
 printf 'Window agents precheck passed.\n'
