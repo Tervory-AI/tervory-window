@@ -5,11 +5,18 @@ import { createHash } from 'node:crypto';
 import { prepare, root, pin, source } from './prepare.mjs';
 import { installExtensions } from './extensions.mjs';
 import { installTunnel } from './tunnel.mjs';
+import { linuxEnvironment } from './native-environment.mjs';
+import { checkLinuxAbi } from './linux-abi.mjs';
 const platform = process.platform; const arch = process.arch;
 if (!['win32', 'darwin', 'linux'].includes(platform) || !['x64', 'arm64'].includes(arch)) throw Error('Unsupported build host');
 if (process.versions.node.split('.')[0] !== pin.node.split('.')[0]) throw Error(`Use Node ${pin.node}`);
 await prepare();
-const npm = (args, cwd = source) => execFileSync(process.execPath, [process.env.npm_execpath, ...args], { cwd, stdio: 'inherit', env: { ...process.env, VSCODE_QUALITY: 'oss', VSCODE_ARCH: arch, BUILD_SOURCEVERSION: pin.commit } });
+let nativeEnvironment = {};
+const npm = (args, cwd = source) => execFileSync(process.execPath, [process.env.npm_execpath, ...args], { cwd, stdio: 'inherit', env: { ...process.env, ...nativeEnvironment, VSCODE_QUALITY: 'oss', VSCODE_ARCH: arch, BUILD_SOURCEVERSION: pin.commit } });
+if (platform === 'linux') {
+  npm(['ci'], resolve(source, 'build'));
+  nativeEnvironment = linuxEnvironment(source);
+}
 // Code-OSS postinstall builds its platform-native modules. Do not disable scripts.
 npm(['ci']);
 npm(['ci', '--ignore-scripts', '--no-audit', '--no-fund'], resolve(root, 'vendor/cli'));
@@ -28,6 +35,7 @@ if (platform === 'win32') {
   npm(['run', 'gulp', '--', `vscode-win32-${arch}-user-setup`]);
   await cp(resolve(source, `.build/win32-${arch}/user-setup/VSCodeSetup.exe`), resolve(out, `tervory-window-win32-${arch}-setup.exe`));
 } else if (platform === 'linux') {
+  await checkLinuxAbi(built);
   npm(['run', 'gulp', '--', `vscode-linux-${arch}-prepare-deb`]);
   npm(['run', 'gulp', '--', `vscode-linux-${arch}-build-deb`]);
   const debs = resolve(source, `.build/linux/deb/${arch === 'x64' ? 'amd64' : 'arm64'}/deb`);

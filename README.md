@@ -26,7 +26,9 @@ same Code-OSS commit, using checksum-verified prebuilt OpenSSL. Run `npm ci`, th
 `npm run prepare-source` and `npm run build`.
 Build on the target OS/CPU: Windows x64/arm64, macOS x64/arm64, Linux x64/arm64.
 Code-OSS requires its native build prerequisites (C++ toolchain, Python; GTK,
-X11, libsecret and Kerberos development libraries on Linux). Build output is an
+X11, libsecret and Kerberos development libraries plus Clang/LLD on Linux).
+Linux native modules use the pinned upstream release sysroots and Electron C++
+libraries; installer dependency validation remains enabled. Build output is an
 unsigned portable archive in `dist`, with SHA256SUMS and build metadata.
 Check the checksum before extracting; launch Tervory.exe, Tervory.app, or bin/tervory.
 
