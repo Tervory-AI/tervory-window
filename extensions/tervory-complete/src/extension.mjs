@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { installInlineEdit } from './inline-edit.mjs';
 import { Tank, run, session, safe, receiptLines } from '@tervory/cli-client';
 
 const config = () => vscode.workspace.getConfiguration('tervory.complete');
@@ -129,7 +130,8 @@ export async function activate(context) {
   context.subscriptions.push(output, changed, moved, switched, { dispose: cancel },
     vscode.workspace.onDidChangeConfiguration(event => { if (event.affectsConfiguration('tervory.complete')) cancel(); }),
     vscode.languages.registerInlineCompletionItemProvider({ scheme: 'file' }, provider));
-  return { provider, contextFor,
+  const edit = installInlineEdit(context, { call, contextFor, paidMode: () => config().get('paidMode') });
+  return { provider, contextFor, edit,
     // Injection exists only for the extension-test host, never a setting or command.
     configureTest: context.extensionMode === vscode.ExtensionMode.Test ? options => {
       transport = options.transport; credentialStore = options.store;
