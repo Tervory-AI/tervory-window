@@ -35,6 +35,11 @@ export async function installExtensions(root, resources) {
     // Native keyring is intentionally not loaded: the panel uses SecretStorage.
     if (folder === panel) {
       await mkdir(resolve(destination, 'media'), { recursive: true });
+      for (const weight of [400, 600]) {
+        const name = `inter-latin-${weight}-normal.woff2`;
+        await cp(resolve(root, 'node_modules/@fontsource/inter/files', name), resolve(destination, 'media', name));
+      }
+      await cp(resolve(root, 'node_modules/@fontsource/inter/LICENSE'), resolve(destination, 'media/Inter.LICENSE'));
       await cp(resolve(root, 'vendor/brand/tervory-logo.png'), resolve(destination, 'media/tervory-logo.png'));
       await cp(resolve(root, 'vendor/cli/src'), resolve(destination, 'cli/src'), { recursive: true });
       await cp(resolve(root, 'vendor/cli/package.json'), resolve(destination, 'cli/package.json'));

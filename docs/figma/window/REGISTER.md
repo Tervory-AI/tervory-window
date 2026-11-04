@@ -1,20 +1,11 @@
-# Window frames required
+# Approved panel basics
 
-Status: required; no approved desktop frames were supplied with WINDOW.
-The existing web COMMAND wireframe does not approve desktop panel wording or
-native editor review states. This register makes no design-approval claim.
+Founder approval in the Window task supersedes the Proposed status in the source registers.
 
-| Frame | Required state and behavior |
-| --- | --- |
-| WINDOW-01 | Right-docked Tervory chat/agent panel, exact supplied logo, empty state, project selection and trusted/untrusted folder. |
-| WINDOW-02 | Trigger sign-in: US/ZA choice, browser/device approval pending, success, cancellation, expired/revoked sign-in and sign-out. All authentication uses the current CLI implementation. |
-| WINDOW-03 | Ask/read-project request, streaming answer, bounded error/cancel state, receipts and savings using the CLI's exact output. |
-| WINDOW-04 | Multi-file change review with editor diffs, accept/reject whole file and individual hunk, reject all, stale file refusal, and no changes before acceptance. |
-| WINDOW-05 | Undo confirmation, successful restore, user-edited-file refusal and empty undo history. |
-| WINDOW-06 | Approved command: full command, host-permissions notice where applicable, explicit approval, window terminal output, timeout/cancel/truncation and refusal. |
-| WINDOW-07 | Plugins and MCP catalogue, card tool/arguments, Confirm/cancel, running state and receipt. |
-| WINDOW-08 | Unsigned install/checksum verification and native OS trust dialogs; no signing or notarization claim. |
+Source: [tervory-tank PR #685](https://github.com/Tervory-AI/tervory-tank/pull/685), branch `codex/figma-w5`, `docs/figma/window/REGISTER.md` and `REGISTER-AGENT.md`.
 
-The separate tervory-complete, tervory-index and tervory-agents owners supply
-frames for their own functions. Their merged integration gets acceptance rows
-in docs/acceptance/window.md. No final panel copy or layout is approved here.
+Implementation targets: sign-in 548:77, empty 553:1326, conversation 555:284, command waiting 556:1710, running 557:1062, finished 557:1260, undo 557:4683, plugins/MCP 557:6211, error 557:8131, offline 557:8327, multi-file review 557:4283 and receipt 557:4501 in [the design file](https://www.figma.com/design/ZnphBOJU6657tohGLD3IzS).
+
+The built-in panel uses the approved wording, Inter, navy outline actions with 48px controls, white surfaces, a shared header and composer. Code-OSS supplies native editor chrome; the webview does not redraw it. Dynamic paths, outputs, receipts and device codes come from the CLI/Tank; illustrative design values are not inserted as live results.
+
+Autocomplete, inline edits, indexing, background agents and PR comments are integrated from their owners. The source agent register governs their visible basics.

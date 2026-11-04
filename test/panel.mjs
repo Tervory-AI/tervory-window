@@ -50,7 +50,7 @@ export async function scenario(name) {
   };
   try {
     const result=await activate(vscode,context);
-    api.resolveWebviewView({webview:{options:{},postMessage:value=>{outputs.push(value);},onDidReceiveMessage:fn=>{message=fn;return{dispose(){}};}},onDidDispose:fn=>{disposed=fn;return{dispose(){}};}});
+    api.resolveWebviewView({webview:{options:{},postMessage:value=>{outputs.push(value);if(value.type==='approval')queueMicrotask(()=>message({type:'approve',id:value.id,approved:prompt==='Confirm'}));},onDidReceiveMessage:fn=>{message=fn;return{dispose(){}};}},onDidDispose:fn=>{disposed=fn;return{dispose(){}};}});
     if(name==='ask') {await message({type:'ask',text:'read this project'});assert(outputs.some(x=>x.text?.includes('Project answer.')));assert(outputs.some(x=>x.text?.includes('0.01')));}
     else if(name==='signin-us'||name==='signin-za') {
       region=name==='signin-za'?'za':'us-east';secrets.clear();

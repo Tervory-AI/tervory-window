@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { cli, InputQueue, hunks, selectedDiff } from './session.mjs';
 
@@ -8,17 +9,29 @@ export async function activate(vscode, context) {
   const store = { get: () => context.secrets.get('tervory.session'), set: value => context.secrets.store('tervory.session', value), remove: () => context.secrets.delete('tervory.session') };
   const documents = new Map();
   context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('tervory-diff', { provideTextDocumentContent: uri => documents.get(uri.toString()) ?? '' }));
-  let view; let session; let busy = false; let review; let terminal; let terminalOutput;
+  let view; let session; let busy = false; let review; let terminal; let terminalOutput; let approval; let commandText = ""; let lastOutput = ""; let lastReceipt;
   const send = value => view?.webview.postMessage(value);
-  const write = value => send({ type: 'output', text: client.safe(redactSecrets(String(value))) });
+  const write = value => { const text = client.safe(redactSecrets(String(value))); lastOutput = (lastOutput + text).slice(-65536); send({ type: 'output', text }); };
+  function approve(prompt, signal) {
+    const action = prompt.startsWith('Run') ? 'Run' : prompt.startsWith('Undo') ? 'Undo' : 'Confirm';
+    return new Promise(done => {
+      const id = randomBytes(16).toString('hex');
+      const finish = allowed => { signal?.removeEventListener('abort', cancel); approval = undefined; done(allowed ? 'y' : 'n'); };
+      const cancel = () => finish(false);
+      approval = { id, finish };
+      signal?.addEventListener('abort', cancel, { once: true });
+      if (signal?.aborted) return cancel();
+      send({ type: 'approval', id, action, label: action === 'Run' ? 'Waiting for Run' : action, text: action === 'Run' ? commandText : lastOutput });
+    });
+  }
   const folder = () => {
     const roots = vscode.workspace.workspaceFolders ?? [];
     if (roots.length !== 1 || roots[0].uri.scheme !== 'file') throw Error('Open one local project folder.');
     if (!vscode.workspace.isTrusted) throw Error('Trust this project before running code tools.');
     return roots[0].uri.fsPath;
   };
-  async function signIn() {
-    const region = await vscode.window.showQuickPick([{ label: 'US', value: 'us-east' }, { label: 'ZA', value: 'za' }], { title: 'Trigger sign-in' });
+  async function signIn(selected) {
+    const region = ['us-east', 'za'].includes(selected) ? { value: selected } : await vscode.window.showQuickPick([{ label: 'US', value: 'us-east' }, { label: 'ZA', value: 'za' }], { title: 'Trigger sign-in' });
     if (!region) return;
     await client.run(['login', '--region', region.value], { store, io: { interactive: true, write, deviceName: () => 'Tervory desktop', open: url => vscode.env.openExternal(vscode.Uri.parse(url)) } });
   }
@@ -59,13 +72,12 @@ export async function activate(vscode, context) {
           if (value !== null) busy = true;
           return value;
         }
-        const value = await vscode.window.showWarningMessage(prompt.startsWith('Run') ? 'Run this command in the project?' : prompt.startsWith('Undo') ? 'Undo the last accepted edit?' : 'Confirm this action?', { modal: true }, 'Confirm');
-        return abort.signal.aborted ? null : value === 'Confirm' ? 'y' : 'n';
+        return approve(prompt, abort.signal);
       },
     };
     try {
       const tank = new client.Tank(await client.session(store), fetch, abort.signal);
-      await codeSession(tank, folder(), 'auto', io, client.receiptLines, client.safe, {
+      await codeSession(tank, folder(), 'auto', io, receipt => { lastReceipt = receipt; send({ type: 'receipt', receipt }); return client.receiptLines(receipt); }, client.safe, {
         createFolder: async root => {
           const local = await CodeFolder.create(root); const tool = local.tool.bind(local);
           local.tool = async (request, toolIO, options) => {
@@ -75,6 +87,7 @@ export async function activate(vscode, context) {
               return tool({ name: 'propose_edit', arguments: { diff: patch } }, { ...toolIO, prompt: async () => abort.signal.aborted ? null : 'y' }, options);
             }
             if (request.name === 'run_command') {
+              commandText = client.safe(redactSecrets(JSON.stringify(request.arguments))) + '\nFolder: ' + local.root;
               if (!terminal) {
                 terminalOutput = new vscode.EventEmitter();
                 terminal = vscode.window.createTerminal({ name: 'Tervory commands', pty: { onDidWrite: terminalOutput.event, open() {}, close() { session?.abort.abort(); terminal = undefined; terminalOutput?.dispose(); terminalOutput = undefined; } } });
@@ -106,7 +119,7 @@ export async function activate(vscode, context) {
       const thread = (await tank.json('/v1/command/threads', {})).thread_id;
       await client.showTurn(tank, thread, redactSecrets(`${text}\n\n${contextText}`), 'auto', [], {
         interactive: true, signal: abort.signal, write,
-        prompt: async () => (await vscode.window.showWarningMessage('Confirm this tool action?', { modal: true }, 'Confirm')) === 'Confirm' && !abort.signal.aborted ? 'y' : 'n',
+        prompt: prompt => approve(prompt, abort.signal),
       });
     } finally { session = undefined; busy = false; send({ type: 'ready' }); }
   }
@@ -119,8 +132,14 @@ export async function activate(vscode, context) {
       context.subscriptions.push(view.webview.onDidReceiveMessage(async message => {
         try {
           if (!message || typeof message.type !== 'string') return;
-          if (message.type === 'cancel') { session?.abort.abort(); session?.input.close(); review?.done(new Set()); return; }
-          if (message.type === 'signIn') { await signIn(); return; }
+          if (message.type === 'approve' && approval && message.id === approval.id && typeof message.approved === 'boolean') { approval.finish(message.approved); return; }
+          if (message.type === 'cancel') { approval?.finish(false); session?.abort.abort(); session?.input.close(); review?.done(new Set()); return; }
+          if (message.type === 'signIn') { await signIn(message.region); send({ type: 'auth', signedIn: !!(await store.get()) }); return; }
+          if (message.type === 'ready') { send({ type: 'auth', signedIn: !!(await store.get()) }); return; }
+          if (message.type === 'newChat') { session?.abort.abort(); session?.input.close(); review?.done(new Set()); send({ type: 'newChat' }); return; }
+          if (message.type === 'plugins') { const tank = new client.Tank(await client.session(store), fetch); const plugins = await tank.json('/v1/command/plugins/list'); const mcp = await tank.json('/v1/command/mcp/servers/list'); send({ type: 'plugins', items: [{ title: 'Plugins', text: JSON.stringify(plugins) }, { title: 'MCP', text: JSON.stringify(mcp) }] }); return; }
+          if (message.type === 'receipt' && lastReceipt) { const content = client.safe(redactSecrets(JSON.stringify(lastReceipt, null, 2))); const document = await vscode.workspace.openTextDocument({ content, language: 'json' }); await vscode.window.showTextDocument(document); return; }
+          if (message.type === 'attach') { const local = await CodeFolder.create(folder()); const file = vscode.window.activeTextEditor?.document.uri; if (file?.scheme === 'file') { const name = vscode.workspace.asRelativePath(file, false); const data = await local.read(name); if (data.exists) write(name + '\n' + data.text); } return; }
           if (message.type === 'signOut') { session?.abort.abort(); session?.input.close(); await client.run(['logout'], { store, io: { write } }); return; }
           if (message.type === 'preview' && review) {
             const card = review.cards.find(card => card.name === message.name);
@@ -140,28 +159,25 @@ export async function activate(vscode, context) {
             if (session) throw Error('Finish or stop the code conversation first.');
             await ask(text);
           } else await startCode(text);
-        } catch (error) { busy = false; write(error.message); send({ type: 'ready' }); }
+        } catch (error) { busy = false; write(error.message); send({ type: 'error', text: client.safe(redactSecrets(error.message)), offline: error instanceof TypeError }); send({ type: 'ready' }); }
       }));
-      context.subscriptions.push(view.onDidDispose(() => { session?.abort.abort(); session?.input.close(); review?.done(new Set()); view = undefined; }));
+      context.subscriptions.push(view.onDidDispose(() => { approval?.finish(false); session?.abort.abort(); session?.input.close(); review?.done(new Set()); view = undefined; }));
     },
   };
   context.subscriptions.push(vscode.window.registerWebviewViewProvider('tervory.panel', provider));
   context.subscriptions.push(vscode.commands.registerCommand('tervory.focus', () => vscode.commands.executeCommand('tervory.panel.focus')));
   context.subscriptions.push(vscode.commands.registerCommand('tervory.signIn', signIn));
-  context.subscriptions.push({ dispose() { session?.abort.abort(); session?.input.close(); terminal?.dispose(); documents.clear(); } });
+  context.subscriptions.push({ dispose() { approval?.finish(false); session?.abort.abort(); session?.input.close(); terminal?.dispose(); documents.clear(); } });
   return { provider, signIn };
 }
 
 export function html(nonce) {
-  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';"><style nonce="${nonce}">
-body{background:#fff;color:#001840;font:14px system-ui;margin:16px}button{background:#001840;color:white;border:0;border-radius:4px;padding:9px;margin:4px;cursor:pointer}textarea{box-sizing:border-box;width:100%;min-height:90px;background:#F4F6FB;color:#001840;border:1px solid #B8BFD0;padding:10px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px monospace}fieldset{border:1px solid #B8BFD0;margin:8px 0}label{display:block;padding:6px}input{margin-right:8px}</style></head><body>
-<h2>Tervory</h2><button id="signIn">Trigger sign-in</button><button id="signOut">Sign out</button><pre id="output" role="log" aria-live="polite"></pre><div id="review"></div><label for="text">Ask about this project or describe a change</label><textarea id="text"></textarea><button id="ask">Ask</button><button id="code">Edit</button><button id="undo">Undo</button><button id="cancel">Stop</button>
-<script nonce="${nonce}">
-const api=acquireVsCodeApi(),byId=id=>document.getElementById(id);let waiting=false;
-for(const type of ['signIn','signOut','ask','code','undo','cancel'])byId(type).onclick=()=>{if(waiting&&['ask','code','undo'].includes(type))return;if(['ask','code','undo'].includes(type))waiting=true;api.postMessage({type,text:byId('text').value});};
-window.addEventListener('message',({data})=>{if(data.type==='ready'){waiting=false;return;}if(data.type==='output'){byId('output').textContent=(byId('output').textContent+data.text).slice(-500000);return;}if(data.type!=='review')return;
-const area=byId('review');area.replaceChildren();for(const file of data.files){const box=document.createElement('fieldset'),title=document.createElement('legend');title.textContent=file.name;box.append(title);const preview=document.createElement('button');preview.textContent='Open diff';preview.onclick=()=>api.postMessage({type:'preview',name:file.name});box.append(preview);const all=document.createElement('button');all.textContent='Accept file';const none=document.createElement('button');none.textContent='Reject file';box.append(all,none);all.onclick=()=>box.querySelectorAll('input').forEach(x=>x.checked=true);none.onclick=()=>box.querySelectorAll('input').forEach(x=>x.checked=false);
-for(const hunk of file.hunks){const label=document.createElement('label'),input=document.createElement('input'),code=document.createElement('pre');input.type='checkbox';input.dataset.index=hunk.index;input.checked=false;label.append(input,document.createTextNode('Accept hunk '+hunk.label));code.textContent=hunk.diff;box.append(label,code);}area.append(box);}
-const apply=document.createElement('button');apply.textContent='Apply selected';apply.onclick=()=>{api.postMessage({type:'accept',hunks:[...area.querySelectorAll('input:checked')].map(x=>Number(x.dataset.index))});area.replaceChildren();};const reject=document.createElement('button');reject.textContent='Reject all';reject.onclick=()=>{api.postMessage({type:'accept',hunks:[]});area.replaceChildren();};area.append(apply,reject);});
-</script></body></html>`;
+  let result = readFileSync(new URL('./panel.html', import.meta.url), 'utf8').replaceAll('__NONCE__', nonce);
+  for (const weight of [400, 600]) {
+    const name = `inter-latin-${weight}-normal.woff2`;
+    const packaged = new URL('../media/' + name, import.meta.url);
+    const path = existsSync(packaged) ? packaged : new URL('../../node_modules/@fontsource/inter/files/' + name, import.meta.url);
+    result = result.replace('__FONT' + weight + '__', readFileSync(path).toString('base64'));
+  }
+  return result;
 }
