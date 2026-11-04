@@ -139,7 +139,32 @@ export async function activate(vscode, context) {
           if (message.type === 'signIn') { await signIn(message.region); send({ type: 'auth', signedIn: !!(await store.get()) }); return; }
           if (message.type === 'ready') { send({ type: 'auth', signedIn: !!(await store.get()) }); return; }
           if (message.type === 'newChat') { session?.abort.abort(); session?.input.close(); review?.done(new Set()); send({ type: 'newChat' }); return; }
-          if (message.type === 'plugins') { const tank = new client.Tank(await client.session(store), fetch); const plugins = await tank.json('/v1/command/plugins/list'); const mcp = await tank.json('/v1/command/mcp/servers/list'); send({ type: 'plugins', items: [{ title: 'Plugins', text: JSON.stringify(plugins) }, { title: 'MCP', text: JSON.stringify(mcp) }] }); return; }
+          if (message.type === 'plugins') {
+            if (busy || approval) return;
+            busy = true;
+            try {
+            const abort = new AbortController();
+            const tank = new client.Tank(await client.session(store), fetch, abort.signal);
+            const tools = await tank.json('/v1/command/tools');
+            const items = [];
+            if (tools.includes('plugins.list')) {
+              const thread = (await tank.json('/v1/command/threads', {})).thread_id;
+              const card = await tank.json(`/v1/command/threads/${encodeURIComponent(thread)}/actions`, { tool: 'plugins.list', arguments: {} });
+              const io = { interactive: true, signal: abort.signal, write, prompt: prompt => approve(prompt, abort.signal) };
+              write(JSON.stringify({ tool: card.tool, arguments: card.arguments ?? {} }) + '\n');
+              const confirmed = await client.confirmCard(tank, card, io);
+              if (confirmed.status === 'cancelled') return;
+              await client.followThread(tank, thread, confirmed, io);
+              const snapshot = await tank.json(`/v1/command/threads/${encodeURIComponent(thread)}`);
+              const result = snapshot.cards?.find(item => item.card_id === card.card_id)?.result;
+              for (const plugin of result?.items ?? []) items.push({ title: plugin.name === 'github' ? 'GitHub' : plugin.name, text: `${plugin.installed ? 'Installed' : plugin.status} · ${plugin.version}` });
+            }
+            const mcp = tools.filter(tool => tool.startsWith('mcp.') && !tool.startsWith('mcp.servers.'));
+            if (mcp.length) items.push({ title: 'MCP', text: mcp.join('\n') });
+            send({ type: 'plugins', items: items.map(item => ({ title: client.safe(redactSecrets(item.title)), text: client.safe(redactSecrets(item.text)) })) });
+            } finally { busy = false; send({ type: 'ready' }); }
+            return;
+          }
           if (message.type === 'receipt' && lastReceipt) { const content = client.safe(redactSecrets(JSON.stringify(lastReceipt, null, 2))); const document = await vscode.workspace.openTextDocument({ content, language: 'json' }); await vscode.window.showTextDocument(document); return; }
           if (message.type === 'attach') { const local = await CodeFolder.create(folder()); const file = vscode.window.activeTextEditor?.document.uri; if (file?.scheme === 'file') { const name = vscode.workspace.asRelativePath(file, false); const data = await local.read(name); if (data.exists) { attached = redactSecrets(name + '\n' + data.text); write(attached); } } return; }
           if (message.type === 'signOut') { session?.abort.abort(); session?.input.close(); await client.run(['logout'], { store, io: { write } }); return; }

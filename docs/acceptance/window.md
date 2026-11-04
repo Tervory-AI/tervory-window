@@ -13,7 +13,7 @@ Open a trusted local Git project with `file.txt` and `second.txt` containing `ol
 | WINDOW-07 | Untrusted project → Tervory panel | Ask to edit | No Tank request or project edit | none |
 | WINDOW-08 | Tervory panel → Code | Request `echo panel-command`, select Run | Waiting for Run → Running → Finished, exit code 0, panel-command in terminal output | none |
 | WINDOW-09 | Tervory panel → Code | Request the same command, select Cancel | Command is not run; Tank receives ran=false | none |
-| WINDOW-10 | Tervory panel → Plugins | Open Plugins | Installed plugin list and MCP tools come from the regional Tank | none |
+| WINDOW-10 | Tervory panel → Plugins | Open Plugins and Confirm the listing card | Installed plugin list and MCP tools come from the regional Tank | none |
 | WINDOW-11 | Tervory panel, offline Tank fixture | Enter `explain` and select Send | Offline; Connection lost.; No action was retried. | none |
 | WINDOW-12 | Tervory panel → multi-file review | Enter `change both files`, replace file.txt with `outside change`, then accept both hunks | External contents survive; second.txt remains old | none |
 | WINDOW-13 | Tervory panel → multi-file review | Enter `change both files`, select New chat before accepting | Both files remain old | none |

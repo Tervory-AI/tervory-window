@@ -33,9 +33,12 @@ export async function scenario(name) {
     const parsed=new URL(url);const body=init.body?JSON.parse(init.body):null;
     assert.equal(parsed.origin,region==='za'?'https://za.tervory.com':'https://app.tervory.com');
     calls.push({path:parsed.pathname,body});
+    if(!parsed.pathname.includes('/device/'))assert.equal(init.headers.Authorization,`Bearer ${token(region)}`);
     if(name==='offline')throw new TypeError('fetch failed');
-    if(parsed.pathname.endsWith('/plugins/list'))return Response.json({plugins:[{name:'GitHub',version:'1.0.0'}]});
-    if(parsed.pathname.endsWith('/mcp/servers/list'))return Response.json({servers:[{name:'GitHub',tools:['list_issues']}]});
+    if(parsed.pathname.endsWith('/tools'))return Response.json(['plugins.list','mcp.github.list_issues']);
+    if(parsed.pathname.endsWith('/actions')){assert.equal(body.tool,'plugins.list');return Response.json({card_id:'plugin-card',tool:'plugins.list',arguments:{},summary:'Plugins',status:'pending'});}
+    if(parsed.pathname.endsWith('/cards/plugin-card')){assert.equal(body.action,'confirm');return Response.json({card_id:'plugin-card',status:'executing'});}
+    if(parsed.pathname.endsWith('/placeholder-thread'))return Response.json({cards:[{card_id:'plugin-card',status:'done',result:{items:[{name:'github',version:'1.0.0',installed:true}]}}],steps:[{step_id:'plugin-card',status:'done',receipt_status:'recorded'}],receipts:[]});
     if(parsed.pathname.endsWith('/device/code'))return Response.json({device_code:'placeholder-device',user_code:'BCDF-GHJK',verification_uri:'https://app.tervory.com/cli/device',expires_in:20,interval:1});
     if(parsed.pathname.endsWith('/device/token'))return Response.json({access_token:token(region),refresh_token:`tvr1.${region}.${'1'.repeat(32)}.${('placeholder'+'r'.repeat(43)).slice(0,43)}`,expires_at:new Date(Date.now()+3600000).toISOString(),refresh_expires_at:new Date(Date.now()+86400000).toISOString()});
     assert.equal(init.headers.Authorization,`Bearer ${token(region)}`);
@@ -60,7 +63,7 @@ export async function scenario(name) {
     const result=await activate(vscode,context);
     api.resolveWebviewView({webview:{options:{},postMessage:value=>{outputs.push(value);if(value.type==='approval')queueMicrotask(()=>message({type:'approve',id:value.id,approved:prompt==='Confirm'}));},onDidReceiveMessage:fn=>{message=fn;return{dispose(){}};}},onDidDispose:fn=>{disposed=fn;return{dispose(){}};}});
     if(name==='ask') {await message({type:'ask',text:'Explain this project'});assert(outputs.some(x=>x.text?.includes('Project answer.')));assert(outputs.some(x=>x.text?.includes('0.01')));}
-    else if(name==='plugins'){await message({type:'plugins'});assert(outputs.some(x=>x.type==='plugins'&&JSON.stringify(x.items).includes('list_issues')));}
+    else if(name==='plugins'){await message({type:'plugins'});assert(outputs.some(x=>x.type==='plugins'&&JSON.stringify(x.items).includes('list_issues')&&JSON.stringify(x.items).includes('Installed · 1.0.0')));}
     else if(name==='offline'){await message({type:'code',text:'explain'});assert(outputs.some(x=>x.type==='error'&&x.offline));assert.equal(calls.length,1);}
     else if(name==='command'||name==='command-deny'){
       if(name==='command-deny')prompt='Cancel';const running=message({type:'code',text:'echo panel-command'});
