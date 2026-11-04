@@ -64,9 +64,13 @@ export async function activate(context) {
     remove: () => context.secrets.delete('cli-session') };
   let transport = fetch;
   let credentialStore = store;
+  const hint = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  hint.name = 'Tab autocomplete';
+  hint.text = 'Tab to accept    Esc to dismiss';
+  hint.tooltip = 'A suggestion appears at the cursor in the editor.';
   let active;
   let epoch = 0;
-  const cancel = () => { epoch++; active?.abort(); active = undefined; };
+  const cancel = () => { hint.hide(); epoch++; active?.abort(); active = undefined; };
   const changed = vscode.workspace.onDidChangeTextDocument(cancel);
   const moved = vscode.window.onDidChangeTextEditorSelection(cancel);
   const switched = vscode.window.onDidChangeActiveTextEditor(cancel);
@@ -119,6 +123,7 @@ export async function activate(context) {
       if (stop.signal.aborted) return [];
       const result = await call({ ...payload, mode: 'complete', paid_mode: config().get('paidMode'), confirmed }, stop.signal, 1800);
       if (stop.signal.aborted || version !== document.version || generation !== epoch || result.status !== 'ok' || !result.text) return [];
+      hint.show();
       return [new vscode.InlineCompletionItem(result.text, new vscode.Range(position, position))];
     } catch { return []; }
     finally { listener.dispose(); if (active === stop) active = undefined; }
@@ -134,6 +139,7 @@ export async function activate(context) {
     const mode = await vscode.window.showQuickPick(['ask', 'auto'], { title: 'Ask / Auto' });
     if (mode) { cancel(); await config().update('paidMode', mode, vscode.ConfigurationTarget.Global); }
   });
+  register('dismiss', async () => { cancel(); await vscode.commands.executeCommand('editor.action.inlineSuggest.hide'); });
   register('request', async () => {
     if (config().get('paidMode') !== 'auto'
         && await vscode.window.showWarningMessage('Allow this request?', { modal: true }, 'Allow') !== 'Allow') return;
@@ -141,7 +147,7 @@ export async function activate(context) {
     try { await vscode.commands.executeCommand('editor.action.inlineSuggest.trigger'); }
     finally { explicit = false; }
   });
-  context.subscriptions.push(output, changed, moved, switched, { dispose: cancel },
+  context.subscriptions.push(output, hint, changed, moved, switched, { dispose: cancel },
     vscode.workspace.onDidChangeConfiguration(event => { if (event.affectsConfiguration('tervory.complete')) cancel(); }),
     vscode.languages.registerInlineCompletionItemProvider({ scheme: 'file' }, provider));
   const edit = installInlineEdit(context, { call, contextFor, paidMode: () => config().get('paidMode') });

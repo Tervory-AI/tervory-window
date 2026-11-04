@@ -17,8 +17,8 @@ Run the HTTP contract tests in the Tank repository with its Python 3.12 dependen
 `python -m pytest -q tests/test_window_complete.py`.
 
 Every requested state is listed in [FIGMA-FRAMES.md](FIGMA-FRAMES.md).
-All visible wording is provisional until the panel frames in
-`docs/figma/window/REGISTER.md` are available. Required frames:
+Basic autocomplete, selection, instruction and diff wording is approved from
+`docs/figma/window/REGISTER-AGENT.md` in Tank PR #685. Additional state requests:
 
 - Completion: multiline ghost text, Tab hint, dismissed/loading/empty states.
 - Spending: Ask/Auto toggle, one-request Ask confirmation, declined state.
@@ -27,8 +27,8 @@ All visible wording is provisional until the panel frames in
 - Project rules: missing/present/unreadable/oversize states for `.tervory/rules`.
 - Account and receipt: sign in/out, expired account, cost/savings pending/error.
 
-No Figma wording or panel layout is invented here. Native editor inputs and plain
-placeholder labels provide behavior until approved frames land.
+Native editor controls use the exact approved basic wording mapped in
+FIGMA-FRAMES.md. Other states retain their existing placeholders.
 
 The extension bundles `cli/src/client.mjs` from immutable Tank revision
 `412c48c4ca3918a21cfbdee3c522d7cb67e88b0c`. CI checks that public repository out
@@ -43,7 +43,7 @@ is exposed. The same extension code uses native editor APIs on Linux, macOS and
 Windows; stock VSCodium Linux is the exercised host in this change.
 
 `Tervory: Ask / Auto` selects spending behavior at application scope (a repository
-cannot enable Auto). Typing in Ask mode does not dispatch. `Tervory: Complete`
+cannot enable Auto). Typing in Ask mode does not dispatch. `Tab autocomplete`
 asks once for a request. Auto debounces typing and closes superseded requests.
 Tab accepts the editor's ghost text; typing, cursor moves or Escape dismiss it.
 Only trusted file workspaces send code. The open file's nearest three open tabs
@@ -52,7 +52,7 @@ then nearby tabs in split editors; duplicate documents are included once. Missin
 string; unreadable or oversized rules stop the request rather than silently
 omitting them. Rules are re-read for each completion and selected-code edit.
 
-Select text and press Ctrl+K (Cmd+K on macOS), or run `Tervory: Change`. Describe
+Select text and press Ctrl+K (Cmd+K on macOS), or run `Edit with Tervory`. Describe
 the change in the native input, review the native inline diff, then Accept or
 Reject in the editor title or CodeLens. The preview uses read-only virtual
 documents and language-scoped inline-diff defaults, leaving the source unchanged

@@ -33,5 +33,6 @@ Two branches form this job: one PR in tervory-window for the extension and one
 in tervory-tank for the completion route and wiring. Claude opens the two PRs. Never merge. Use the per-gate pushed
 heads and live CI results from the chat report. Linux stock VSCodium is the
 exercised host; macOS/Windows native editor APIs are used but those hosts have not
-been executed locally. Placeholder wording and every needed Figma frame are
-listed in README.md; the Window register was absent on the initial main checkout.
+been executed locally. Basic wording is approved; remaining state requests are listed in FIGMA-FRAMES.md.
+
+Approved basic editor wording is mapped in FIGMA-FRAMES.md (Tank #685); window PR #2 contains the implementation, with server integration in Tank #691.

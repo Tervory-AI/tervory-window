@@ -26,7 +26,7 @@
         "tervory.complete.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Completion"
+          "description": "A suggestion appears at the cursor in the editor."
         },
         "tervory.complete.paidMode": {
           "type": "string",
@@ -60,7 +60,7 @@
       },
       {
         "command": "tervory.complete.request",
-        "title": "Tervory: Complete"
+        "title": "Tab autocomplete"
       },
       {
         "command": "tervory.complete.togglePaid",
@@ -68,7 +68,7 @@
       },
       {
         "command": "tervory.complete.inlineEdit",
-        "title": "Tervory: Change"
+        "title": "Edit with Tervory"
       },
       {
         "command": "tervory.complete.acceptEdit",
@@ -90,6 +90,11 @@
         "command": "editor.action.inlineSuggest.commit",
         "key": "tab",
         "when": "inlineSuggestionVisible && !editorTabMovesFocus"
+      },
+      {
+        "command": "tervory.complete.dismiss",
+        "key": "escape",
+        "when": "inlineSuggestionVisible && editorTextFocus"
       }
     ],
     "menus": {
@@ -103,6 +108,13 @@
           "command": "tervory.complete.rejectEdit",
           "when": "resourceScheme == tervory-edit && tervory.complete.hasEdit",
           "group": "navigation@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "tervory.complete.inlineEdit",
+          "when": "editorHasSelection && !editorReadonly",
+          "group": "1_modification"
         }
       ]
     },
