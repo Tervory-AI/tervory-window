@@ -23,9 +23,9 @@ export async function installExtensions(root, resources) {
     if (!pkg.publisher || !pkg.name || ids.has(id)) throw Error('Invalid or duplicate built-in extension.');
     ids.add(id);
     if (pkg.scripts?.build || pkg.scripts?.model) {
-      execFileSync(process.execPath, [process.env.npm_execpath, 'ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: folder, stdio: 'inherit' });
-      if (pkg.scripts?.model) execFileSync(process.execPath, [process.env.npm_execpath, 'run', 'model'], { cwd: folder, stdio: 'inherit' });
-      if (pkg.scripts?.build) execFileSync(process.execPath, [process.env.npm_execpath, 'run', 'build'], { cwd: folder, stdio: 'inherit' });
+      execFileSync(process.execPath, [process.env.npm_execpath, 'ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: folder, stdio: 'inherit', env: { ...process.env, TERVORY_CLI_ROOT: resolve(root, 'vendor/cli') } });
+      if (pkg.scripts?.model) execFileSync(process.execPath, [process.env.npm_execpath, 'run', 'model'], { cwd: folder, stdio: 'inherit', env: { ...process.env, TERVORY_CLI_ROOT: resolve(root, 'vendor/cli') } });
+      if (pkg.scripts?.build) execFileSync(process.execPath, [process.env.npm_execpath, 'run', 'build'], { cwd: folder, stdio: 'inherit', env: { ...process.env, TERVORY_CLI_ROOT: resolve(root, 'vendor/cli') } });
     }
     const destination = resolve(resources, 'extensions', basename(folder));
     await rm(destination, { recursive: true, force: true });
