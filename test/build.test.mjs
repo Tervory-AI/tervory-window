@@ -18,6 +18,8 @@ test('pinned Code-OSS source is MIT and the real product patch uses Open VSX wit
   assert(!installer.includes('inno-big-') && !installer.includes('inno-small-'));
   for (const name of ['large','small']) assert.equal((await readFile(resolve(source, `resources/win32/tervory-wizard-${name}.bmp`))).subarray(0,2).toString(), 'BM');
   const product = JSON.parse(await readFile(resolve(source, 'product.json')));
+  const {shouldGenerateNodeCompileCache}=await import('../.tmp/code-oss-source/build/lib/nodeCompileCache.ts');
+  for(const platform of ['linux','darwin','win32'])for(const arch of ['x64','arm64'])assert.equal(shouldGenerateNodeCompileCache(platform,arch,product),false);
   for (const key of ['nameShort', 'nameLong', 'win32DirName']) assert.equal(product[key], 'Tervory');
   assert.equal(product.darwinBundleIdentifier, 'com.tervory.window');
   assert.equal(product.extensionsGallery.serviceUrl, 'https://open-vsx.org/vscode/gallery');

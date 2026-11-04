@@ -32,7 +32,6 @@
   "win32TunnelMutex": "tervory-tunnel",
   "win32TunnelServiceMutex": "tervory-tunnel-service",
   "win32VersionedUpdate": false,
-  "quality": "oss",
   "updateUrl": null,
   "downloadUrl": "https://github.com/Tervory-AI/tervory-window",
   "licenseName": "MIT",

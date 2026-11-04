@@ -37,9 +37,6 @@ export async function prepare() {
   const tasks = await readFile(gulpfile, 'utf8');
   const patched = tasks.replace(', compileCopilotExtensionBuildTask', '').replace(/^\s*compileCopilotExtensionBuildTask,\r?\n/gm, '').replace(/^\s*prepareCopilotRipgrepShimTask\(platform, arch, destinationFolderName\)\r?\n/gm, '');
   await writeFile(gulpfile, patched);
-  const cacheBuilder = resolve(source, 'build/lib/nodeCompileCache.ts');
-  const cacheCode = await readFile(cacheBuilder, 'utf8');
-  await writeFile(cacheBuilder, cacheCode.replace('cp.spawn(application, [], {', "cp.spawn(application, process.platform === 'linux' ? ['--no-sandbox', '--disable-gpu'] : [], {").replace("const temporaryDirectory = platform === 'win32' ? os.tmpdir() : '/tmp';", 'const temporaryDirectory = os.tmpdir();'));
   const logo = await readFile(resolve(root, 'vendor/brand/tervory-logo.png'));
   // Format conversion of the exact supplied logo, never a replacement drawing.
   const ico = createICO(logo, 0, 0, true); const icns = createICNS(logo, 0, 0);

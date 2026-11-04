@@ -41,3 +41,9 @@ The CLI is fetched by `build/vendor-cli.mjs` from the immutable commit in
 `cli-source.json`; generated `vendor/` is never committed. Run `npm run vendor-cli`
 and `npm ci --prefix vendor/cli --ignore-scripts` before offline panel tests.
 Run `bash scripts/precheck.sh` before every push. See `docs/acceptance/window.md`.
+
+The build uses the standard Code-OSS product profile, without Microsoft's release
+channel and its optional prewarmed Node cache. Native boot and editor tests remain
+required on every build target. Windows uses the runner's SDK signature tool to
+verify and remove upstream signatures before patching metadata; no signing key
+is used, and Tervory installers remain unsigned.
