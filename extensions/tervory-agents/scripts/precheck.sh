@@ -27,6 +27,23 @@ exec docker run --rm --label tervory.test=1 --name "${folder}-semgrep-\$\$" \\
 EOF
 chmod +x "$bin/semgrep"
 export PATH="$bin:$PATH"
+# security_scan.py expects these paths. A fresh window repository uses every
+# default rule and an empty fingerprint list, without importing Tank exceptions.
+created_config=0
+created_ignore=0
+if [ ! -f .gitleaks.toml ]; then
+ printf '[extend]\nuseDefault = true\n' > .gitleaks.toml
+ created_config=1
+fi
+if [ ! -f .gitleaksignore ]; then
+ : > .gitleaksignore
+ created_ignore=1
+fi
+cleanup() {
+ if [ "$created_config" = 1 ]; then rm .gitleaks.toml; fi
+ if [ "$created_ignore" = 1 ]; then rm .gitleaksignore; fi
+}
+trap cleanup EXIT
 for check in gitleaks semgrep osv; do
  python3 "$security_source/.github/scripts/security_scan.py" "$check" --base "$base" --output "$TMPDIR/security-results"
 done
