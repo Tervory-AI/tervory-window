@@ -1,4 +1,5 @@
 """One production-panel fixture path per founder row."""
+from functools import lru_cache
 import os
 from pathlib import Path
 import re
@@ -6,6 +7,13 @@ import subprocess
 import unittest
 ROOT = Path(__file__).resolve().parents[2]
 CASES = dict(zip(range(1, 14), ['ask', 'signin-us', 'signin-za', 'undo', 'partial', 'reject', 'trust', 'command', 'command-deny', 'plugins', 'offline', 'stale', 'cancel-review']))
+CASES.update({14:'editor:autocomplete',15:'editor:inline edit',16:'editor:project rules',17:'agents:task uses only',18:'agents:GitHub credential is entered',19:'agents:one inline cancel action',20:'agents:an invalid Tervory credential'})
+
+@lru_cache(maxsize=1)
+def editor_proof():
+    result = subprocess.run(['node', 'test/editor-suite.mjs'], cwd=ROOT, env=dict(os.environ, TMPDIR=str(ROOT / '.tmp')), check=True, timeout=300, capture_output=True, text=True)
+    return result.stdout + result.stderr
+
 class WindowAcceptance(unittest.TestCase):
     def test_one_row_one_case(self):
         rows = re.findall(r'^\| WINDOW-(\d+) \|', (ROOT / 'docs/acceptance/window.md').read_text(), re.M)
@@ -13,6 +21,12 @@ class WindowAcceptance(unittest.TestCase):
         self.assertEqual(len(rows), len(set(rows)))
 def case(scenario):
     def run(self):
+        if scenario.startswith('editor:'):
+            self.assertIn('PASS ' + scenario.split(':', 1)[1] + ':', editor_proof())
+            return
+        if scenario.startswith('agents:'):
+            subprocess.run(['node', '--test', '--test-name-pattern=' + scenario.split(':', 1)[1], 'extensions/tervory-agents/test/extension.test.cjs'], cwd=ROOT, check=True, timeout=60, capture_output=True, text=True)
+            return
         subprocess.run(['node', 'test/panel.mjs', scenario], cwd=ROOT,
                        env=dict(os.environ, TMPDIR=str(ROOT / '.tmp')),
                        check=True, timeout=120, capture_output=True, text=True)

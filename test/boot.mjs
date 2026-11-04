@@ -7,7 +7,7 @@ const executable=process.platform==='darwin'?resolve(built,'Tervory.app/Contents
 const project=resolve(root,'.tmp/boot-project');await mkdir(project,{recursive:true});
 const result=resolve(root,'.tmp/native-panel-result');await rm(result,{force:true});
 const panel=resolve(built,process.platform==='darwin'?'Tervory.app/Contents/Resources/app/extensions/extension':'resources/app/extensions/extension');
-const args=[project,'--no-sandbox','--disable-gpu','--skip-welcome','--skip-release-notes','--user-data-dir',resolve(root,'.tmp/boot-user'),'--extensions-dir',resolve(root,'.tmp/boot-extensions'),'--extensionDevelopmentPath='+panel,'--extensionTestsPath='+resolve(root,'test/native.cjs')];
+const args=[project,'--no-sandbox','--disable-gpu','--skip-welcome','--skip-release-notes','--disable-workspace-trust','--user-data-dir',resolve(root,'.tmp/boot-user'),'--extensions-dir',resolve(root,'.tmp/boot-extensions'),'--extensionDevelopmentPath='+panel,'--extensionTestsPath='+resolve(root,'test/native.cjs')];
 const child=spawn(executable,args,{stdio:'inherit',env:{...process.env,ELECTRON_RUN_AS_NODE:undefined,TERVORY_PANEL_TEST_RESULT:result}});
 const timer=setTimeout(()=>child.kill('SIGKILL'),180000);
 child.on('exit',async code=>{
