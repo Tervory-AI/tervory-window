@@ -23,8 +23,8 @@ const {pathToFileURL,fileURLToPath}=require('node:url');
  try{
   Module._load=function(request,...args){return request==='vscode'?vscode:load.call(this,request,...args)};delete require.cache[file];extension=require(file);
   const api=await extension.activate({subscriptions,storageUri:uri(path.join(base,'store')),asAbsolutePath:relative=>path.resolve('extensions/tervory-index',relative)});
-  await commands.get('tervory.index.search')();assert.equal(opened.at(-1).uri.fsPath,path.join(root,'account.ts'));assert.equal(opened.at(-1).selection.start.line,1);
-  mode='exact';query='resetPassword(email:';await commands.get('tervory.index.search')();assert.equal(opened.at(-1).uri.fsPath,path.join(root,'account.ts'));
+  await commands.get('tervory.index.search')();assert.equal(opened.at(-1).uri.fsPath,path.join(root,'account.ts'));
+  mode='exact';query='resetPassword(email:';await commands.get('tervory.index.search')();assert.equal(opened.at(-1).uri.fsPath,path.join(root,'account.ts'));assert.equal(opened.at(-1).selection.start.line,1);
   const count=opened.length;query='RESETPASSWORD';await commands.get('tervory.index.search')();assert.equal(opened.length,count);assert.equal(notices.at(-1),'No matches');
   assert.equal(api.fileCount(),2);console.log('passed index-command');
  }finally{Module._load=load;global.fetch=originalFetch;await extension?.deactivate();for(const item of subscriptions)item.dispose();await fs.rm(base,{recursive:true,force:true});}
