@@ -31,9 +31,11 @@ def case(scenario):
             self.assertIn('# pass 1', result.stdout)
             self.assertIn('# fail 0', result.stdout)
             return
-        subprocess.run(['node', 'test/panel.mjs', scenario], cwd=ROOT,
+        result = subprocess.run(['node', 'test/panel.mjs', scenario], cwd=ROOT,
                        env=dict(os.environ, TMPDIR=str(ROOT / '.tmp')),
-                       check=True, timeout=120, capture_output=True, text=True)
+                       check=False, timeout=120, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('passed ' + scenario, result.stdout)
     return run
 for row, scenario in CASES.items():
     setattr(WindowAcceptance, f'test_window_{row:02}', case(scenario))

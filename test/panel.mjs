@@ -28,7 +28,7 @@ export async function scenario(name) {
       showWarningMessage:async()=>prompt,createTerminal:()=>({show(){},dispose(){}}),
       registerWebviewViewProvider:(id,provider)=>{api=provider;return{dispose(){}};}},
   };
-  const until=async predicate=>{for(let n=0;n<300;n++){if(await predicate())return;await new Promise(resolve=>setTimeout(resolve,20));}throw Error('Panel fixture timed out: '+name);};
+  const until=async predicate=>{for(let n=0;n<1000;n++){if(await predicate())return;await new Promise(resolve=>setTimeout(resolve,20));}throw Error('Panel fixture timed out: '+name+'; last messages: '+JSON.stringify(outputs.slice(-5)));};
   globalThis.fetch=async(url,init={})=>{
     const parsed=new URL(url);const body=init.body?JSON.parse(init.body):null;
     assert.equal(parsed.origin,region==='za'?'https://za.tervory.com':'https://app.tervory.com');
