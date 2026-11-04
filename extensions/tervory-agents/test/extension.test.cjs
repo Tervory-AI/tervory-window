@@ -4,12 +4,14 @@ const Module = require('node:module');
 const path = require('node:path');
 const manifest = require('../package.json');
 
-function fixture(t, { invalidToken = false } = {}) {
+function fixture(t, { invalidToken = false, prUrl = 'https://github.com/alice/other/pull/8' } = {}) {
   const commands = new Map();
   const requests = [];
   const inputs = [];
   const picks = [];
   const clipboard = [];
+  const opened = [];
+  const documents = [];
   const inputOptions = [];
   const subscriptions = [];
   const errors = [];
@@ -17,14 +19,18 @@ function fixture(t, { invalidToken = false } = {}) {
   const secrets = new Map([['tervory.personal', invalidToken ? 'refused' : ['tv1', 'us-east', 'a'.repeat(32), 'b'.repeat(43)].join('.')]]);
   const vscode = {
     EventEmitter: class { event() {} fire() {} dispose() {} },
-    TreeItem: class { constructor(label) { this.label = label; } },
+    TreeItem: class { constructor(label, state) { this.label = label; this.collapsibleState = state; } },
+    TreeItemCollapsibleState: { Expanded: 2 },
+    Uri: { parse: value => value },
+    workspace: { async openTextDocument(value) { return value; } },
     window: {
       registerTreeDataProvider(id, value) { provider = value; return { dispose() {} }; },
       async showInputBox(options) { inputOptions.push(options); return inputs.shift(); },
       async showQuickPick(options) { return picks.length ? picks.shift() : options[0]; },
+      async showTextDocument(document) { documents.push(document); },
       showErrorMessage(message) { errors.push(message); },
     },
-    env: { clipboard: { async writeText(value) { clipboard.push(value); } } },
+    env: { async openExternal(uri) { opened.push(uri); }, clipboard: { async writeText(value) { clipboard.push(value); } } },
     commands: { registerCommand(id, callback) { commands.set(id, callback); return { dispose() {} }; } },
   };
   const activeId = '12345678-1234-1234-1234-123456789abc';
@@ -34,10 +40,11 @@ function fixture(t, { invalidToken = false } = {}) {
     requests.push(request);
     let data = null;
     if (request.path.endsWith('/vault/github') && options.method === 'GET') data = ['github'];
+    if (request.path.endsWith('/receipt')) data = { status: 'recorded', totals: { cost_usd: .01, baseline_cost_usd: .03, saved_usd: .02 }, rows: [{ cost_usd: .01, tokens_in: 3, tokens_out: 5, ledger_id: 'should-not-be-rendered' }] };
     if (request.path.endsWith('/webhooks')) data = { enabled: request.body.enabled, url: 'https://app.tervory.com/v1/window-agents/webhooks/fixture', secret: 'fixture-webhook-secret' };
     if (request.path.endsWith('/jobs') && options.method === 'GET') data = [
       { job_id: activeId, repo: 'alice/project', status: 'running' },
-      { job_id: 'finished', repo: 'alice/other', status: 'done' },
+      { job_id: '87654321-4321-4321-4321-cba987654321', repo: 'alice/other', status: 'done', kind: 'review', pull_number: 8, result: { pr_url: prUrl } },
     ];
     return { ok: true, status: options.method === 'PUT' ? 204 : 200, async json() { return data; } };
   });
@@ -50,7 +57,7 @@ function fixture(t, { invalidToken = false } = {}) {
   } finally { Module._load = load; }
   const close = () => { for (const item of subscriptions) item.dispose(); delete require.cache[file]; };
   t.after(close);
-  return { commands, requests, inputs, picks, clipboard, inputOptions, provider, errors, activeId, close };
+  return { commands, requests, inputs, picks, clipboard, inputOptions, provider, errors, activeId, close, opened, documents };
 }
 
 test('task uses only the credential name and continues after window disposal', async t => {
@@ -78,9 +85,12 @@ test('GitHub credential is entered in a masked vault form', async t => {
 
 test('one inline cancel action applies only to queued or running tasks', async t => {
   const f = fixture(t);
-  const items = await f.provider.getChildren();
+  const groups = await f.provider.getChildren();
+  assert.deepEqual(groups.map(g => g.label), ['Running', 'Finished']);
+  const items = await f.provider.getChildren(groups[0]);
+  const finished = await f.provider.getChildren(groups[1]);
   assert.equal(items[0].contextValue, 'tervoryAgent.running');
-  assert.equal(items[1].contextValue, 'tervoryAgent.finished');
+  assert.equal(finished[0].contextValue, 'tervoryAgent.pr');
   assert.equal(manifest.contributes.menus['view/item/context'].filter(x => x.command === 'tervory.agents.cancel').length, 1);
   await f.commands.get('tervory.agents.cancel')(items[0]);
   assert.equal(f.requests.at(-1).path, `/v1/window-agents/jobs/${f.activeId}/cancel`);
@@ -122,4 +132,34 @@ test('webhook secret is copied only after the explicit copy choice', async t => 
   await f.commands.get('tervory.agents.webhook')();
   assert.equal(f.requests.at(-1).body.enabled, true);
   assert.deepEqual(f.clipboard, ['fixture-webhook-secret']);
+});
+
+
+test('finished reviews link to their GitHub PR', async t => {
+  const f = fixture(t);
+  const groups = await f.provider.getChildren();
+  const finished = await f.provider.getChildren(groups[1]);
+  assert.equal(finished[0].label, 'alice/other #8');
+  await f.commands.get('tervory.agents.open')(finished[0]);
+  assert.deepEqual(f.opened, ['https://github.com/alice/other/pull/8']);
+});
+
+test('receipt view shows recorded costs and token counts', async t => {
+  const f = fixture(t);
+  const groups = await f.provider.getChildren();
+  const items = await f.provider.getChildren(groups[0]);
+  await f.commands.get('tervory.agents.receipt')(items[0]);
+  assert.equal(f.documents[0].language, 'plaintext');
+  assert.match(f.documents[0].content, /Recorded cost: \$0\.010000/);
+  assert.match(f.documents[0].content, /input 3, output 5 tokens/);
+  assert.ok(!f.documents[0].content.includes('should-not-be-rendered'));
+});
+
+test('PR links cannot open another host or a script URL', async t => {
+  const f = fixture(t, { prUrl: 'javascript:refused' });
+  const groups = await f.provider.getChildren();
+  const finished = await f.provider.getChildren(groups[1]);
+  assert.equal(finished[0].command, undefined);
+  await f.commands.get('tervory.agents.open')({ prUrl: 'https://other.example/alice/project/pull/8' });
+  assert.deepEqual(f.opened, []);
 });

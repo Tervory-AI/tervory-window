@@ -30,3 +30,10 @@ signed GitHub pull-request webhook in the window. Configure the supplied callbac
 URL, application/json, generated secret, and pull-request events on GitHub; the
 server deduplicates deliveries for the same PR head. Enabling a webhook never
 asks the user to paste their GitHub token into a chat.
+
+The view groups tasks and reviews into Running and Finished. A PR link opens only
+GitHub; Show receipt reads the existing command receipt and displays recorded
+cost, baseline, savings and token counts. Running jobs remain visible even when
+more than 100 newer jobs have finished. History shows up to 100 recent finished
+jobs and 100 active/queued jobs, plus any additional running jobs. Final group,
+empty, error, PR-link and receipt-detail frames are still needed from Figma.
