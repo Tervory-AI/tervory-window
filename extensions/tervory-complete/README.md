@@ -14,8 +14,9 @@ policy fails closed. Receipts come from tenant-scoped ledger IDs, including
 escalation attempts. Unknown savings remain pending; customer receipts hide models.
 
 Run the HTTP contract tests in the Tank repository with its Python 3.12 dependencies:
-`python -m pytest -q tests/test_window_complete.py (in tervory-tank)`.
+`python -m pytest -q tests/test_window_complete.py`.
 
+Every requested state is listed in [FIGMA-FRAMES.md](FIGMA-FRAMES.md).
 All visible wording is provisional until the panel frames in
 `docs/figma/window/REGISTER.md` are available. Required frames:
 
@@ -49,6 +50,13 @@ Only trusted file workspaces send code. The open file's nearest three open tabs
 from the same workspace contribute bounded context. Missing rules send an empty
 string; unreadable or oversized rules stop the request rather than silently
 omitting them. Rules are re-read for each completion and selected-code edit.
+
+Select text and press Ctrl+K (Cmd+K on macOS), or run `Tervory: Change`. Describe
+the change in the native input, review the native inline diff, then Accept or
+Reject in the editor title or CodeLens. The preview uses read-only virtual
+documents and language-scoped inline-diff defaults, leaving the source unchanged
+until acceptance. Acceptance is one undoable edit. Any intervening source edit
+invalidates the proposal. Empty replacements support deletion.
 
 `VSCODE_EXECUTABLE_PATH=/path/to/codium xvfb-run -a npm test` runs the actual
 extension host through `@vscode/test-electron` against a loopback fake Tank; omit

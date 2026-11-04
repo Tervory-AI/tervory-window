@@ -65,14 +65,60 @@
       {
         "command": "tervory.complete.togglePaid",
         "title": "Tervory: Ask / Auto"
+      },
+      {
+        "command": "tervory.complete.inlineEdit",
+        "title": "Tervory: Change"
+      },
+      {
+        "command": "tervory.complete.acceptEdit",
+        "title": "Accept"
+      },
+      {
+        "command": "tervory.complete.rejectEdit",
+        "title": "Reject"
       }
     ],
     "keybindings": [
+      {
+        "command": "tervory.complete.inlineEdit",
+        "key": "ctrl+k",
+        "mac": "cmd+k",
+        "when": "editorTextFocus && editorHasSelection && !editorReadonly"
+      },
       {
         "command": "editor.action.inlineSuggest.commit",
         "key": "tab",
         "when": "inlineSuggestionVisible && !editorTabMovesFocus"
       }
-    ]
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "tervory.complete.acceptEdit",
+          "when": "resourceScheme == tervory-edit && tervory.complete.hasEdit",
+          "group": "navigation@1"
+        },
+        {
+          "command": "tervory.complete.rejectEdit",
+          "when": "resourceScheme == tervory-edit && tervory.complete.hasEdit",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "tervory-review",
+        "aliases": [
+          "Tervory review"
+        ]
+      }
+    ],
+    "configurationDefaults": {
+      "[tervory-review]": {
+        "diffEditor.renderSideBySide": false,
+        "diffEditor.codeLens": true
+      }
+    }
   }
 }
