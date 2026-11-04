@@ -3,6 +3,7 @@ set -euo pipefail
 export TMPDIR="$PWD/.tmp"
 mkdir -p "$TMPDIR"
 git diff --check
+npm ci --prefix vendor/cli --ignore-scripts --no-audit --no-fund
 npm run lint
 npm test
 node --test extensions/tervory-agents/test/*.test.cjs

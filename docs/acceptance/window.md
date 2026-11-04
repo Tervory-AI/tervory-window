@@ -27,12 +27,10 @@ Open a trusted local Git project with `file.txt` and `second.txt` containing `ol
 | WINDOW-21 | Review pull request | Choose `github`, enter `alice/project` and PR number `8` in the offline fixture | Worker receives PR 8 and the credential name; no token or model override in the request | none |
 | WINDOW-22 | PR review webhook | Choose `github`, enter `alice/project`, select Disable | Webhook is disabled; nothing is copied to the clipboard | none |
 | WINDOW-23 | PR review webhook | Choose `github`, enter `alice/project`, select Enable, then Copy webhook secret | Only that explicit choice copies the returned fixture secret | none |
-
 | WINDOW-24 | Agents → Finished → Open pull request | Open the finished `alice/other #8` fixture review | Running and Finished groups are shown; the PR opens at https://github.com/alice/other/pull/8 | none |
 | WINDOW-25 | Agents → Show receipt | Show the running fixture job’s receipt | Recorded cost: $0.010000; input 3, output 5 tokens; unrelated response fields are omitted | none |
 | WINDOW-26 | Agents → Trigger sign-in | Select Trigger sign-in | Opens the panel’s existing Trigger sign-in flow; no separate personal-token prompt | none |
 | WINDOW-27 | Command Palette → Tervory: Sign out | Run Sign out, then open the Tervory panel | Trigger sign-in; the shared CLI session is cleared | none |
-
 | WINDOW-28 | Project index, local model fixture | Embed `reset forgotten password`, `recover account credentials`, and `paint a mountain landscape` offline | 384-dimensional vectors; account phrases are closer than the landscape phrase; no model network access | none |
 | WINDOW-29 | Command Palette → Search this project | Search `help someone regain access to their account` in the fixture | `account.ts` ranks first; exact `resetPassword(email:` matches line 2 and uppercase `RESETPASSWORD` does not match | none |
 | WINDOW-30 | Project index file watchers | Create, edit and delete `created.ts`; add/remove `account.ts` in `.tervoryignore` | File count changes 2 → 3 → 2; ignored file is removed, then restored | none |
