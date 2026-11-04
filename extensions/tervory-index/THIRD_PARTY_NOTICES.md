@@ -20,3 +20,9 @@ LICENSE/NOTICE files when packaging node_modules and the model assets.
 
 Model preparation only downloads pinned public model artifacts. There is no hosted
 embedding endpoint, model account, paid provider or external vector database.
+
+The build creates a patched Transformers.js browser runtime for Intel macOS:
+its browser environment flag selects the WASM backend and its Tensor import uses the matching ONNX
+Web backend. Local file reads are bounded to packaged model/runtime directories;
+remote model and WASM downloads are disabled at runtime. Upstream Apache-2.0
+license and notices above apply to this generated derivative.

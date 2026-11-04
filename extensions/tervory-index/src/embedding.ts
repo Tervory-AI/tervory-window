@@ -5,8 +5,8 @@ export class LocalEmbedder implements Embedder {
   private worker: Worker;
   private next = 0;
   private pending = new Map<number,{resolve:(v:number[][])=>void; reject:(e:Error)=>void}>();
-  constructor(modelRoot: string) {
-    this.worker = new Worker(path.join(__dirname,'embedding-worker.js'),{workerData:{modelRoot}});
+  constructor(modelRoot: string, backend:'native'|'wasm' = process.platform==='darwin' && process.arch==='x64' ? 'wasm' : 'native') {
+    this.worker = new Worker(path.join(__dirname,'embedding-worker.js'),{workerData:{modelRoot,backend,runtime:path.join(__dirname,'../../runtime/transformers-wasm.mjs'),wasmRoot:path.dirname(require.resolve('onnxruntime-web'))}});
     this.worker.on('message', (m: {id:number; vectors:number[][]; error?:string}) => {
       const p = this.pending.get(m.id); this.pending.delete(m.id);
       if (m.error) p?.reject(new Error(m.error)); else p?.resolve(m.vectors);

@@ -13,6 +13,9 @@ test('actual integrated built-ins install with loadable CLI, fonts and entry poi
    const folder=resolve(out,'extensions',name),pkg=JSON.parse(await readFile(resolve(folder,'package.json')));
    await access(resolve(folder,pkg.main));
   }
+  const index=resolve(out,'extensions/tervory-index');
+  await access(resolve(index,'runtime/transformers-wasm.mjs'));
+  await access(resolve(index,'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm'));
   const panel=resolve(out,'extensions/extension');
   const manifest=JSON.parse(await readFile(resolve(panel,'package.json')));
   assert.equal(manifest.contributes.viewsContainers.secondarySidebar[0].id,'tervory');

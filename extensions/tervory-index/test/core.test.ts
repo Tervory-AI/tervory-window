@@ -92,3 +92,9 @@ test('two windows can persist the same project without temporary-file collisions
     assert.equal((await restored.search('shared','exact'))[0].path,'code.ts');await restored.dispose();
   } finally {await first.dispose();await second.dispose();await fs.rm(base,{recursive:true,force:true});}
 });
+
+test('packaged WebAssembly backend keeps Intel macOS embeddings local',async()=>{
+  const {LocalEmbedder}=await import('../src/embedding.js');
+  const model=new LocalEmbedder(path.resolve(__dirname,'../../models'),'wasm');
+  try{const[a,b,c]=await model.embed(['reset forgotten password','recover account credentials','paint a mountain landscape']);assert.equal(a.length,384);const dot=(v:number[],w:number[])=>v.reduce((sum,x,i)=>sum+x*w[i],0);assert(dot(a,b)>dot(a,c));}finally{await model.dispose();}
+});

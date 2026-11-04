@@ -74,3 +74,9 @@ record per OS. These are fixture budgets, not a claim about every project or CPU
 The three-OS workflow is the only integration file outside this extension's
 ownership lane. It changes no deployment or paid routes. Model downloads occur
 only during build/test preparation and are checksum-verified before indexing.
+
+Intel macOS uses the packaged ONNX WebAssembly CPU backend because the pinned
+ONNX Node package omits that native binary. The same local model, vectors, search
+and context features remain available. Both backend paths are tested offline;
+model/WASM file reads are restricted to packaged directories and all runtime
+network fetches are refused. The generated runtime retains upstream notices.

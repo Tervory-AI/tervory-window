@@ -4,3 +4,4 @@ models/
 .vscode-test/
 *.vsix
 benchmark-results.json
+runtime/
