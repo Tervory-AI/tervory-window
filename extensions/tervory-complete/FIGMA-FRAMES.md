@@ -1,13 +1,21 @@
-# Completion and inline-edit frame requests
+# Completion and inline-edit wording
 
-Behavior ships with native editor controls and plain placeholders. These are
-requests, not approved wording or layouts. Request each frame at 1440×900 and
-1280×800, including keyboard focus and the disabled action where relevant.
+The founder approved the basic frames on 4 November 2026. Copy is transcribed
+from [Tank PR #685](https://github.com/Tervory-AI/tervory-tank/pull/685),
+`docs/figma/window/agent-evidence/editor-agent-audit.json` at
+`59e6a71addc51a26c70f74b981102c37236fc344`.
 
-The Window register read from the Figma lane explicitly excludes autocomplete,
-inline edit and receipts/savings. Its panel, sign-in and error frames remain
-Proposed. Reuse the eventual approved shell and Trigger sign-in frames; none of
-those proposals approves the strings in this extension.
+| State | Approved nodes (1440 / 1280) | Native editor wording |
+| --- | --- | --- |
+| Autocomplete | 557:1461 / 557:1555 | Tab autocomplete; A suggestion appears at the cursor in the editor.; Tab to accept    Esc to dismiss |
+| Selection | 557:1649 / 557:1746 | Edit with Tervory; Describe edit |
+| Instruction | 557:1843 / 557:1940 | Inline edit; Describe the change for the selected code.; Propose edit |
+| Diff | 557:2037 / 557:2141 | Inline edit; Review the diff in place before applying it.; Accept; Reject |
+
+The extension uses native controls. Shell/chat composer copy and example file
+names, code and instructions are fixture content, not extension instructions.
+Accept/Reject already matched the approved frames. Additional states below
+remain frame requests; the basic approval does not approve their placeholder copy.
 
 | Request | Required frame |
 | --- | --- |
@@ -29,6 +37,3 @@ those proposals approves the strings in this extension.
 | WC16 | Recorded cost and savings receipt |
 | WC17 | Unknown cost or comparison pending; no invented savings |
 | WC18 | Signed-out or expired session; reuse Trigger sign-in and US / ZA frames |
-
-All visible instructions, toggle labels, action labels and receipt placement
-need the owning Figma lane's approved frames before final copy or panel styling.

@@ -26,7 +26,7 @@ export function installInlineEdit(context, { call, contextFor, paidMode }) {
       if (!pending || document.uri.toString() !== pending.after.toString()) return [];
       const range = new vscode.Range(pending.range.start.line, 0, pending.range.start.line, 0);
       return ['Accept', 'Reject'].map(title => new vscode.CodeLens(range, {
-        title, command: `tervory.complete.${title.toLowerCase()}Edit`, arguments: [pending.id],
+        title, tooltip: 'Review the diff in place before applying it.', command: `tervory.complete.${title.toLowerCase()}Edit`, arguments: [pending.id],
       }));
     },
   };
@@ -45,7 +45,8 @@ export function installInlineEdit(context, { call, contextFor, paidMode }) {
     const changed = vscode.workspace.onDidChangeTextDocument(event => { if (event.document === document) stop.abort(); });
     const closed = vscode.workspace.onDidCloseTextDocument(doc => { if (doc === document) stop.abort(); });
     try {
-      instruction ??= await vscode.window.showInputBox({ prompt: 'Change', ignoreFocusOut: true });
+      instruction ??= await vscode.window.showInputBox({ title: 'Inline edit', prompt: 'Describe the change for the selected code.',
+        placeHolder: 'Describe edit', ignoreFocusOut: true });
       if (!instruction?.trim() || instruction.length > 2000 || stop.signal.aborted) return;
       const mode = paidMode();
       const confirmed = mode === 'auto' || await vscode.window.showWarningMessage(
@@ -54,7 +55,7 @@ export function installInlineEdit(context, { call, contextFor, paidMode }) {
       const payload = await contextFor(document, range.start, range);
       if (stop.signal.aborted) return;
       const result = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification,
-        title: 'Change', cancellable: true }, async (_, token) => {
+        title: 'Propose edit', cancellable: true }, async (_, token) => {
         const listener = token.onCancellationRequested(() => stop.abort());
         try { return await call({ ...payload, mode: 'edit', instruction, paid_mode: mode, confirmed }, stop.signal, 8500); }
         finally { listener.dispose(); }
@@ -74,7 +75,7 @@ export function installInlineEdit(context, { call, contextFor, paidMode }) {
       }
       pending = { id, document, version, range, replacement: result.text, after };
       await vscode.commands.executeCommand('setContext', 'tervory.complete.hasEdit', true);
-      await vscode.commands.executeCommand('vscode.diff', before, after, 'Change', {
+      await vscode.commands.executeCommand('vscode.diff', before, after, 'Inline edit', {
         preview: true, viewColumn: editor.viewColumn,
         selection: new vscode.Range(range.start, range.start),
       });
