@@ -32,6 +32,9 @@ export async function scenario(name) {
     const parsed=new URL(url);const body=init.body?JSON.parse(init.body):null;
     assert.equal(parsed.origin,region==='za'?'https://za.tervory.com':'https://app.tervory.com');
     calls.push({path:parsed.pathname,body});
+    if(name==='offline')throw new TypeError('fetch failed');
+    if(parsed.pathname.endsWith('/plugins/list'))return Response.json({plugins:[{name:'GitHub',version:'1.0.0'}]});
+    if(parsed.pathname.endsWith('/mcp/servers/list'))return Response.json({servers:[{name:'GitHub',tools:['list_issues']}]});
     if(parsed.pathname.endsWith('/device/code'))return Response.json({device_code:'placeholder-device',user_code:'BCDF-GHJK',verification_uri:'https://app.tervory.com/cli/device',expires_in:20,interval:1});
     if(parsed.pathname.endsWith('/device/token'))return Response.json({access_token:token(region),refresh_token:`tvr1.${region}.${'1'.repeat(32)}.${('placeholder'+'r'.repeat(43)).slice(0,43)}`,expires_at:new Date(Date.now()+3600000).toISOString(),refresh_expires_at:new Date(Date.now()+86400000).toISOString()});
     assert.equal(init.headers.Authorization,`Bearer ${token(region)}`);
@@ -42,6 +45,10 @@ export async function scenario(name) {
     }
     if(parsed.pathname.endsWith('/code-turn')) {
       assert.equal(body.model,'auto');
+      if(name==='command'||name==='command-deny'){
+        if(body.continuation){const result=JSON.parse(body.tool_results[0].output).result;assert.equal(result.ran,name==='command');if(result.ran)assert(result.output.includes('panel-command'));return Response.json({answer:'Command finished.',receipt,requests:[]});}
+        return Response.json({answer:'',receipt,requests:[{name:'run_command',arguments:{command:'echo panel-command'}}]});
+      }
       if(!body.continuation)round=0;
       const requests=round++===0?[{name:'read_file',arguments:{path:'file.txt'}},{name:'read_file',arguments:{path:'second.txt'}}]:round===2?[{name:'propose_edit',arguments:{diff:patch('file.txt')+patch('second.txt')}}]:[];
       return Response.json({answer:'',receipt,requests});
@@ -52,6 +59,16 @@ export async function scenario(name) {
     const result=await activate(vscode,context);
     api.resolveWebviewView({webview:{options:{},postMessage:value=>{outputs.push(value);if(value.type==='approval')queueMicrotask(()=>message({type:'approve',id:value.id,approved:prompt==='Confirm'}));},onDidReceiveMessage:fn=>{message=fn;return{dispose(){}};}},onDidDispose:fn=>{disposed=fn;return{dispose(){}};}});
     if(name==='ask') {await message({type:'ask',text:'read this project'});assert(outputs.some(x=>x.text?.includes('Project answer.')));assert(outputs.some(x=>x.text?.includes('0.01')));}
+    else if(name==='plugins'){await message({type:'plugins'});assert(outputs.some(x=>x.type==='plugins'&&JSON.stringify(x.items).includes('list_issues')));}
+    else if(name==='offline'){await message({type:'code',text:'explain'});assert(outputs.some(x=>x.type==='error'&&x.offline));assert.equal(calls.length,1);}
+    else if(name==='command'||name==='command-deny'){
+      if(name==='command-deny')prompt='Cancel';const running=message({type:'code',text:'run the command'});
+      await until(()=>outputs.some(x=>x.type==='ready'));
+      assert(outputs.some(x=>x.type==='approval'&&x.action==='Run'));
+      if(name==='command'){assert(outputs.some(x=>x.type==='command'&&x.state==='finished'&&x.code===0));assert(terminals.some(x=>x.includes('panel-command')));}
+      else assert(!outputs.some(x=>x.type==='command'));
+      await message({type:'cancel'});await running;
+    }
     else if(name==='signin-us'||name==='signin-za') {
       region=name==='signin-za'?'za':'us-east';secrets.clear();
       // Current CLI ZA requires its pinned Zitadel response. No desktop-specific provider flow.
@@ -67,7 +84,9 @@ export async function scenario(name) {
       const review=outputs.find(x=>x.type==='review');assert.equal(review.files.length,2);
       assert.equal(await readFile(join(root,'file.txt'),'utf8'),'old\n');
       await message({type:'preview',name:'file.txt'});assert.equal(previews.at(-1)[0],'vscode.diff');
-      if(name==='reject') {await message({type:'accept',hunks:[]});await until(()=>outputs.filter(x=>x.type==='ready').length>=1);assert.equal(await readFile(join(root,'file.txt'),'utf8'),'old\n');}
+      if(name==='stale'){await writeFile(join(root,'file.txt'),'outside change\n');await message({type:'accept',hunks:[0,1]});await until(()=>outputs.some(x=>x.type==='ready'));assert.equal(await readFile(join(root,'file.txt'),'utf8'),'outside change\n');assert.equal(await readFile(join(root,'second.txt'),'utf8'),'old\n');}
+      else if(name==='cancel-review'){await message({type:'cancel'});assert.equal(await readFile(join(root,'file.txt'),'utf8'),'old\n');}
+      else if(name==='reject') {await message({type:'accept',hunks:[]});await until(()=>outputs.filter(x=>x.type==='ready').length>=1);assert.equal(await readFile(join(root,'file.txt'),'utf8'),'old\n');}
       else {
         await message({type:'accept',hunks:name==='partial'?[0]:[0,1]});
         await until(async()=>await readFile(join(root,'file.txt'),'utf8')==='new\n' && await readFile(join(root,'second.txt'),'utf8')===(name==='partial'?'old\n':'new\n'));

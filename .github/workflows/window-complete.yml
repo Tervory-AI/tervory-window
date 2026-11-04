@@ -21,16 +21,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '22'
-      - name: Existing Tank CLI client
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          repository: Tervory-AI/tervory-tank
-          ref: 412c48c4ca3918a21cfbdee3c522d7cb67e88b0c
-          path: .tmp/tank-client
-          persist-credentials: false
-      - name: Install CLI and extension dependencies
+      - name: Pinned shared CLI and extension dependencies
         run: |
-          npm ci --prefix .tmp/tank-client/cli --ignore-scripts
+          npm ci --ignore-scripts
+          npm run vendor-cli
+          npm ci --prefix vendor/cli --ignore-scripts
           npm ci --prefix extensions/tervory-complete --ignore-scripts
       - name: Stock VSCodium
         env:
@@ -43,4 +38,5 @@ jobs:
       - name: Fake Tank editor tests
         env:
           VSCODE_EXECUTABLE_PATH: ${{ github.workspace }}/.tmp/codium/codium
+          TERVORY_CLI_ROOT: ${{ github.workspace }}/vendor/cli
         run: xvfb-run -a npm test --prefix extensions/tervory-complete

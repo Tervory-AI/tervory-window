@@ -9,7 +9,7 @@ export async function activate(vscode, context) {
   const store = { get: () => context.secrets.get('tervory.session'), set: value => context.secrets.store('tervory.session', value), remove: () => context.secrets.delete('tervory.session') };
   const documents = new Map();
   context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('tervory-diff', { provideTextDocumentContent: uri => documents.get(uri.toString()) ?? '' }));
-  let view; let session; let busy = false; let review; let terminal; let terminalOutput; let approval; let commandText = ""; let lastOutput = ""; let lastReceipt;
+  let view; let session; let busy = false; let review; let terminal; let terminalOutput; let approval; let commandText = ""; let lastOutput = ""; let lastReceipt; let attached = "";
   const send = value => view?.webview.postMessage(value);
   const write = value => { const text = client.safe(redactSecrets(String(value))); lastOutput = (lastOutput + text).slice(-65536); send({ type: 'output', text }); };
   function approve(prompt, signal) {
@@ -94,7 +94,9 @@ export async function activate(vscode, context) {
               }
               terminal.show(true);
               const commandIO = { ...toolIO, write: value => { toolIO.write(value); terminalOutput?.fire(client.safe(redactSecrets(value)).replace(/\r?\n/g, '\r\n')); } };
-              return tool(request, commandIO, options);
+              const result = await tool(request, { ...commandIO, prompt: async prompt => { const value = await commandIO.prompt(prompt); if (value === 'y') send({ type: 'command', state: 'running', text: commandText }); return value; } }, options);
+              if (result.ran) send({ type: 'command', state: 'finished', text: commandText, code: result.code, output: client.safe(redactSecrets(result.output)) });
+              return result;
             }
             return tool(request, toolIO, options);
           };
@@ -139,7 +141,7 @@ export async function activate(vscode, context) {
           if (message.type === 'newChat') { session?.abort.abort(); session?.input.close(); review?.done(new Set()); send({ type: 'newChat' }); return; }
           if (message.type === 'plugins') { const tank = new client.Tank(await client.session(store), fetch); const plugins = await tank.json('/v1/command/plugins/list'); const mcp = await tank.json('/v1/command/mcp/servers/list'); send({ type: 'plugins', items: [{ title: 'Plugins', text: JSON.stringify(plugins) }, { title: 'MCP', text: JSON.stringify(mcp) }] }); return; }
           if (message.type === 'receipt' && lastReceipt) { const content = client.safe(redactSecrets(JSON.stringify(lastReceipt, null, 2))); const document = await vscode.workspace.openTextDocument({ content, language: 'json' }); await vscode.window.showTextDocument(document); return; }
-          if (message.type === 'attach') { const local = await CodeFolder.create(folder()); const file = vscode.window.activeTextEditor?.document.uri; if (file?.scheme === 'file') { const name = vscode.workspace.asRelativePath(file, false); const data = await local.read(name); if (data.exists) write(name + '\n' + data.text); } return; }
+          if (message.type === 'attach') { const local = await CodeFolder.create(folder()); const file = vscode.window.activeTextEditor?.document.uri; if (file?.scheme === 'file') { const name = vscode.workspace.asRelativePath(file, false); const data = await local.read(name); if (data.exists) { attached = redactSecrets(name + '\n' + data.text); write(attached); } } return; }
           if (message.type === 'signOut') { session?.abort.abort(); session?.input.close(); await client.run(['logout'], { store, io: { write } }); return; }
           if (message.type === 'preview' && review) {
             const card = review.cards.find(card => card.name === message.name);
@@ -152,14 +154,15 @@ export async function activate(vscode, context) {
             return;
           }
           if (!['ask', 'code', 'undo'].includes(message.type) || busy) return;
-          const text = message.type === 'undo' ? '/undo' : message.text;
+          let text = message.type === 'undo' ? '/undo' : message.text;
+          if (attached && message.type !== 'undo') { text += '\n\n' + attached; attached = ''; }
           if (typeof text !== 'string' || !text.trim() || text.length > 200000) return;
           busy = true;
           if (message.type === 'ask') {
             if (session) throw Error('Finish or stop the code conversation first.');
             await ask(text);
           } else await startCode(text);
-        } catch (error) { busy = false; write(error.message); send({ type: 'error', text: client.safe(redactSecrets(error.message)), offline: error instanceof TypeError }); send({ type: 'ready' }); }
+        } catch (error) { busy = false; write(error.message); send({ type: 'error', text: client.safe(redactSecrets(error.message)), offline: error.message === 'Tank connection failed.' }); send({ type: 'ready' }); }
       }));
       context.subscriptions.push(view.onDidDispose(() => { approval?.finish(false); session?.abort.abort(); session?.input.close(); review?.done(new Set()); view = undefined; }));
     },

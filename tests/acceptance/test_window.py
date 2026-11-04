@@ -5,7 +5,7 @@ import re
 import subprocess
 import unittest
 ROOT = Path(__file__).resolve().parents[2]
-CASES = dict(zip(range(1, 8), ['ask', 'signin-us', 'signin-za', 'undo', 'partial', 'reject', 'trust']))
+CASES = dict(zip(range(1, 14), ['ask', 'signin-us', 'signin-za', 'undo', 'partial', 'reject', 'trust', 'command', 'command-deny', 'plugins', 'offline', 'stale', 'cancel-review']))
 class WindowAcceptance(unittest.TestCase):
     def test_one_row_one_case(self):
         rows = re.findall(r'^\| WINDOW-(\d+) \|', (ROOT / 'docs/acceptance/window.md').read_text(), re.M)

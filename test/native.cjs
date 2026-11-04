@@ -7,5 +7,5 @@ exports.run=async()=>{
  assert(extension.isActive,'Panel activates in the real extension host');
  assert(vscode.workspace.workspaceFolders?.length,'Native window opened its project');
  const {scenario}=await import('./panel.mjs');
- for(const name of ['ask','undo','partial','reject','trust'])await scenario(name);
+ for(const name of ['ask','undo','partial','reject','trust','command','command-deny','plugins','offline','stale','cancel-review'])await scenario(name);
 };
