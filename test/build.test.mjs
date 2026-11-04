@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { root, pin, source } from '../build/prepare.mjs';
+import { patchOnboarding } from '../build/onboarding.mjs';
 
 test('pinned Code-OSS source is MIT and the real product patch uses Open VSX without Microsoft telemetry', async () => {
   assert.equal(JSON.parse(await readFile(resolve(source, 'package.json'))).version, pin.release);
@@ -28,6 +29,11 @@ test('pinned Code-OSS source is MIT and the real product patch uses Open VSX wit
   assert.equal(product.extensionsGallery.serviceUrl, 'https://open-vsx.org/vscode/gallery');
   assert.equal(product.enableTelemetry, false); assert.equal(product.enableCrashReporter, false);
   assert.equal(product.defaultChatAgent, undefined);
+  const onboarding = await readFile(resolve(source, 'src/vs/workbench/contrib/welcomeOnboarding/browser/onboardingVariationA.ts'), 'utf8');
+  assert(!onboarding.includes('Onboarding requires a default chat agent product configuration.'));
+  assert(onboarding.includes("this.commandService.executeCommand('tervory.panel.focus')"));
+  assert.equal(patchOnboarding(onboarding), onboarding);
+  assert.throws(() => patchOnboarding('unexpected source'), /Pinned onboarding source changed/);
   assert.deepEqual(await readFile(resolve(source, 'resources/linux/code.png')), await readFile(resolve(root, 'vendor/brand/tervory-logo.png')));
   assert((await readFile(resolve(source, 'resources/win32/code.ico'))).length > 0);
   assert((await readFile(resolve(source, 'resources/darwin/code.icns'))).length > 0);

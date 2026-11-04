@@ -1,6 +1,7 @@
 import { wizardBitmap } from './brand.mjs';
 import { vendorCli } from './vendor-cli.mjs';
 import { applyProduct } from './product.mjs';
+import { patchOnboarding } from './onboarding.mjs';
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
@@ -37,6 +38,8 @@ export async function prepare() {
   const tasks = await readFile(gulpfile, 'utf8');
   const patched = tasks.replace(', compileCopilotExtensionBuildTask', '').replace(/^\s*compileCopilotExtensionBuildTask,\r?\n/gm, '').replace(/^\s*prepareCopilotRipgrepShimTask\(platform, arch, destinationFolderName\)\r?\n/gm, '');
   await writeFile(gulpfile, patched);
+  const onboarding = resolve(source, 'src/vs/workbench/contrib/welcomeOnboarding/browser/onboardingVariationA.ts');
+  await writeFile(onboarding, patchOnboarding(await readFile(onboarding, 'utf8')));
   // The local ONNX embedding runtime needs GLIBCXX_3.4.22 (GCC 6).
   // Keep upstream core dependency generation strict and declare our extension's
   // additional runtime requirement in the installer control template.

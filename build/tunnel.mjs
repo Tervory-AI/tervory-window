@@ -27,8 +27,8 @@ export async function installTunnel(source, built, pin) {
   if (process.platform === 'linux') {
     env.VSCODE_SYSROOT_DIR = resolve(source, '.build/tunnel-sysroot');
     // The upstream sysroot download verifies its recorded SHA256. Its cross
-    // compiler runs on x64; ARM runners use their native compiler with that
-    // same glibc 2.28 sysroot, preserving the DEB dependency contract.
+    // GCC runs on x64; native ARM Clang selects that SDK's GCC runtime and crt
+    // files too, rather than the runner GCC's absolute host library paths.
     const previous = process.env.VSCODE_SYSROOT_DIR;
     process.env.VSCODE_SYSROOT_DIR = env.VSCODE_SYSROOT_DIR;
     let sysroot;
@@ -39,11 +39,15 @@ export async function installTunnel(source, built, pin) {
       if (previous === undefined) delete process.env.VSCODE_SYSROOT_DIR; else process.env.VSCODE_SYSROOT_DIR = previous;
     }
     const triple = `${arch}-linux-gnu`;
-    const compiler = process.arch === 'x64' ? resolve(env.VSCODE_SYSROOT_DIR, triple, 'bin', `${triple}-gcc`) : 'gcc';
+    const compiler = process.arch === 'x64' ? resolve(env.VSCODE_SYSROOT_DIR, triple, 'bin', `${triple}-gcc`) : 'clang-23';
+    const flags = [`--sysroot=${sysroot}`, `-L${sysroot}/usr/lib/${triple}`];
+    if (process.arch === 'arm64') flags.push(`--target=${triple}`, `--gcc-toolchain=${resolve(env.VSCODE_SYSROOT_DIR, triple)}`, '-fuse-ld=lld-23');
     const key = target.toUpperCase().replaceAll('-', '_');
     env[`CARGO_TARGET_${key}_LINKER`] = compiler;
-    env[`CARGO_TARGET_${key}_RUSTFLAGS`] = `-C link-arg=--sysroot=${sysroot} -C link-arg=-L${sysroot}/usr/lib/${triple}`;
-    env[`CC_${target.replaceAll('-', '_')}`] = `${compiler} --sysroot=${sysroot}`;
+    env[`CARGO_TARGET_${key}_RUSTFLAGS`] = flags.map(flag => `-C link-arg=${flag}`).join(' ');
+    const compileFlags = flags.filter(flag => !flag.startsWith('-L') && !flag.startsWith('-fuse-ld='));
+    env[`CC_${target.replaceAll('-', '_')}`] = `${compiler} ${compileFlags.join(' ')}`;
+    console.log('Tunnel linker:', compiler, ...flags);
     env[`PKG_CONFIG_LIBDIR_${target.replaceAll('-', '_')}`] = `${sysroot}/usr/lib/${triple}/pkgconfig:${sysroot}/usr/share/pkgconfig`;
     env[`PKG_CONFIG_SYSROOT_DIR_${target.replaceAll('-', '_')}`] = sysroot;
   }
