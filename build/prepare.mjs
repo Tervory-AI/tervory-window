@@ -3,6 +3,7 @@ import { vendorCli } from './vendor-cli.mjs';
 import { applyProduct } from './product.mjs';
 import { patchOnboarding } from './onboarding.mjs';
 import { patchDefaultAccount } from './default-account.mjs';
+import { patchArmDependencyReference } from './linux-dependencies.mjs';
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
@@ -48,6 +49,8 @@ export async function prepare() {
   // additional runtime requirement in the installer control template.
   const control = resolve(source, 'resources/linux/debian/control.template');
   await writeFile(control, (await readFile(control, 'utf8')).replace('Depends: @@DEPENDS@@\n', 'Depends: @@DEPENDS@@, libstdc++6 (>= 6)\n'));
+  const dependencies = resolve(source, 'build/linux/debian/dep-lists.ts');
+  await writeFile(dependencies, patchArmDependencyReference(await readFile(dependencies, 'utf8')));
   const logo = await readFile(resolve(root, 'vendor/brand/tervory-logo.png'));
   // Format conversion of the exact supplied logo, never a replacement drawing.
   const ico = createICO(logo, 0, 0, true); const icns = createICNS(logo, 0, 0);
