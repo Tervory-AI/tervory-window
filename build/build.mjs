@@ -25,7 +25,8 @@ if (platform === 'win32') {
   npm(['run', 'gulp', '--', `vscode-win32-${arch}-user-setup`]);
   await cp(resolve(source, `.build/win32-${arch}/user-setup/VSCodeSetup.exe`), resolve(out, `tervory-window-win32-${arch}-setup.exe`));
 } else if (platform === 'linux') {
-  npm(['run', 'gulp', '--', `vscode-linux-${arch}-prepare-deb`, `vscode-linux-${arch}-build-deb`]);
+  npm(['run', 'gulp', '--', `vscode-linux-${arch}-prepare-deb`]);
+  npm(['run', 'gulp', '--', `vscode-linux-${arch}-build-deb`]);
   const debs = resolve(source, `.build/linux/deb/${arch === 'x64' ? 'amd64' : 'arm64'}/deb`);
   for (const deb of await readdir(debs)) if (deb.endsWith('.deb')) await cp(resolve(debs, deb), resolve(out, deb));
 } else {
