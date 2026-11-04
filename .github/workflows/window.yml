@@ -74,6 +74,9 @@ jobs:
         run: |
           $windowSdkArch = '${{ matrix.arch }}'
           $windowSigningTool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Filter signtool.exe -Recurse | Where-Object { $_.Directory.Name -eq $windowSdkArch } | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $windowSigningTool -and $windowSdkArch -eq 'arm64') {
+            $windowSigningTool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Filter signtool.exe -Recurse | Where-Object { $_.Directory.Name -eq 'x64' } | Sort-Object FullName -Descending | Select-Object -First 1
+          }
           if (-not $windowSigningTool) { throw 'Windows SDK signature tool is missing' }
           $windowSigningTool.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Linux native build libraries
