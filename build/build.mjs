@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { prepare, root, pin, source } from './prepare.mjs';
 import { installExtensions } from './extensions.mjs';
+import { installTunnel } from './tunnel.mjs';
 const platform = process.platform; const arch = process.arch;
 if (!['win32', 'darwin', 'linux'].includes(platform) || !['x64', 'arm64'].includes(arch)) throw Error('Unsupported build host');
 if (process.versions.node.split('.')[0] !== pin.node.split('.')[0]) throw Error(`Use Node ${pin.node}`);
@@ -14,6 +15,7 @@ npm(['ci']);
 npm(['ci', '--ignore-scripts', '--no-audit', '--no-fund'], resolve(root, 'vendor/cli'));
 npm(['run', 'gulp', '--', `vscode-${platform}-${arch}-min`]);
 const built = resolve(source, `../VSCode-${platform}-${arch}`);
+await installTunnel(source, built, pin);
 // Copilot is excluded from the distribution. Tervory's extension is copied from
 // our own build below, with the unmodified CLI source, rather than a second agent.
 const resources = platform === 'darwin' ? resolve(built, 'Tervory.app/Contents/Resources/app') : resolve(built, 'resources/app');
@@ -22,6 +24,7 @@ await installExtensions(root, resources);
 const out = resolve(root, 'dist'); await mkdir(out, { recursive: true });
 // Use the upstream platform installers. Signing stays off until configured.
 if (platform === 'win32') {
+  npm(['run', 'gulp', '--', `vscode-win32-${arch}-inno-updater`]);
   npm(['run', 'gulp', '--', `vscode-win32-${arch}-user-setup`]);
   await cp(resolve(source, `.build/win32-${arch}/user-setup/VSCodeSetup.exe`), resolve(out, `tervory-window-win32-${arch}-setup.exe`));
 } else if (platform === 'linux') {

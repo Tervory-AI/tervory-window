@@ -91,6 +91,15 @@ jobs:
       - name: Boot the built window and run fake Tank acceptance
         run: |
           if [ '${{ runner.os }}' = Linux ]; then xvfb-run -a node test/boot.mjs; else node test/boot.mjs; fi
+      - name: Collect sanitized startup diagnostics
+        if: always()
+        run: node test/diagnostics.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: startup-${{ matrix.platform }}-${{ matrix.arch }}
+          path: .tmp/diagnostics/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: tervory-window-${{ matrix.platform }}-${{ matrix.arch }}-unsigned
