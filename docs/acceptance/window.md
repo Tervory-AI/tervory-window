@@ -23,7 +23,7 @@ Open a trusted local Git project with `file.txt` and `second.txt` containing `ol
 | WINDOW-17 | Agents → Start task | Choose a saved GitHub credential name, enter owner/repository and a task, close the window | Worker receives only the credential name; the submitted task is not cancelled by window disposal | none |
 | WINDOW-18 | Save GitHub credential | Enter a credential name and token in the masked form | Token goes to the authenticated worker vault; it is not included in task bodies | none |
 | WINDOW-19 | Agents → Cancel | Select Cancel on a queued or running task | One cancellation request for that job; finished jobs have no cancel action | none |
-| WINDOW-20 | Agents with an expired or invalid Trigger session | Open the Agents view with the offline invalid-session fixture | Connect Tervory or refresh the view; no server is contacted | none |
+| WINDOW-20 | Agents with an expired or invalid Trigger session | Open the Agents view with the offline invalid-session fixture | Trigger sign-in; no server is contacted | none |
 | WINDOW-21 | Review pull request | Choose `github`, enter `alice/project` and PR number `8` in the offline fixture | Worker receives PR 8 and the credential name; no token or model override in the request | none |
 | WINDOW-22 | PR review webhook | Choose `github`, enter `alice/project`, select Disable | Webhook is disabled; nothing is copied to the clipboard | none |
 | WINDOW-23 | PR review webhook | Choose `github`, enter `alice/project`, select Enable, then Copy webhook secret | Only that explicit choice copies the returned fixture secret | none |

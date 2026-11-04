@@ -105,7 +105,7 @@ test('an invalid Tervory credential cannot select an arbitrary server', async t 
   const f = fixture(t, { invalidToken: true });
   const items = await f.provider.getChildren();
   assert.equal(f.requests.length, 0);
-  assert.equal(items[0].label, 'Connect Tervory or refresh the view');
+  assert.equal(items[0].label, 'Trigger sign-in');
   assert.equal(items[0].command.command, 'tervory.agents.connect');
 });
 

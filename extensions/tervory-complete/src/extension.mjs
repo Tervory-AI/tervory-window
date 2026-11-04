@@ -134,7 +134,7 @@ export async function activate(context) {
   const register = (name, handler) => context.subscriptions.push(vscode.commands.registerCommand(`tervory.complete.${name}`, handler));
   register('signIn', async () => {
     try { await (await panel()).signIn(config().get('region')); }
-    catch { vscode.window.showErrorMessage('Sign in failed'); }
+    catch { vscode.window.showErrorMessage('Trigger sign-in failed.'); }
   });
   register('signOut', async () => { cancel(); await (await panel()).signOut(); });
   register('togglePaid', async () => {

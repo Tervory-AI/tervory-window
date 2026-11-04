@@ -18,10 +18,13 @@ export function linuxEnvironment(source) {
     // their ARM headers, crt objects and libraries without executing those tools.
     const client = resolve(env.VSCODE_CLIENT_SYSROOT_DIR, 'aarch64-linux-gnu');
     const remote = resolve(env.VSCODE_REMOTE_SYSROOT_DIR, 'aarch64-linux-gnu');
-    env.CC = `clang --target=aarch64-linux-gnu --gcc-toolchain=${client}`;
-    env.CXX = `clang++ --target=aarch64-linux-gnu --gcc-toolchain=${client}`;
-    env.VSCODE_REMOTE_CC = `clang --target=aarch64-linux-gnu --gcc-toolchain=${remote}`;
-    env.VSCODE_REMOTE_CXX = `clang++ --target=aarch64-linux-gnu --gcc-toolchain=${remote}`;
+    env.CC = `clang --target=aarch64-linux-gnu --gcc-toolchain=${client} --sysroot=${client}/aarch64-linux-gnu/sysroot`;
+    env.CXX = `clang++ --target=aarch64-linux-gnu --gcc-toolchain=${client} --sysroot=${client}/aarch64-linux-gnu/sysroot`;
+    env.VSCODE_REMOTE_CC = `clang --target=aarch64-linux-gnu --gcc-toolchain=${remote} --sysroot=${remote}/aarch64-linux-gnu/sysroot`;
+    env.VSCODE_REMOTE_CXX = `clang++ --target=aarch64-linux-gnu --gcc-toolchain=${remote} --sysroot=${remote}/aarch64-linux-gnu/sysroot`;
+    // Match the upstream Clang profile: old glibc stat inline wrappers have
+    // incompatible C++ exception declarations under Clang.
+    env.CXXFLAGS += ' -D__NO_INLINE__'; env.VSCODE_REMOTE_CXXFLAGS += ' -D__NO_INLINE__';
     env.LDFLAGS += ' -fuse-ld=lld'; env.VSCODE_REMOTE_LDFLAGS += ' -fuse-ld=lld';
   }
   return env;

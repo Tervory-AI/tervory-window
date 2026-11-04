@@ -8,7 +8,7 @@ function activate(context) {
     if (!panel) throw new Error('Tervory panel is unavailable');
     const token = await (await panel.activate()).getSessionToken();
     const match = /^tv1\.(us-east|za)\.[0-9a-f]{32}\.[A-Za-z0-9_-]{43}$/.exec(token || '');
-    if (!match) throw new Error('Connect Tervory first.');
+    if (!match) throw new Error('Trigger sign-in');
     const response = await fetch(ORIGINS[match[1]] + (match[1] === 'us-east' ? '/v1/command/window-agents/' : '/v1/window-agents/') + path, {
       method: method || (body ? 'POST' : 'GET'),
       headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
@@ -45,8 +45,8 @@ function activate(context) {
           return item;
         });
       } catch {
-        const item = new vscode.TreeItem('Connect Tervory or refresh the view');
-        item.command = { command: 'tervory.agents.connect', title: 'Connect Tervory' };
+        const item = new vscode.TreeItem('Trigger sign-in');
+        item.command = { command: 'tervory.agents.connect', title: 'Trigger sign-in' };
         return [item];
       }
     },
