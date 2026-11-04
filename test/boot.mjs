@@ -9,7 +9,7 @@ const result=resolve(root,'.tmp/native-panel-result');await rm(result,{force:tru
 const panel=resolve(built,process.platform==='darwin'?'Tervory.app/Contents/Resources/app/extensions/extension':'resources/app/extensions/extension');
 const args=[project,'--verbose','--log','trace','--no-sandbox','--disable-gpu','--skip-welcome','--skip-release-notes','--disable-workspace-trust','--user-data-dir',resolve(root,'.tmp/boot-user'),'--extensions-dir',resolve(root,'.tmp/boot-extensions'),'--extensionDevelopmentPath='+panel,'--extensionTestsPath='+resolve(root,'test/native.cjs')];
 const env=Object.fromEntries(Object.entries(process.env).filter(([key])=>!(/TOKEN|SECRET|PASSWORD|CREDENTIAL|KEY/i.test(key)||['NODE_OPTIONS','ELECTRON_RUN_AS_NODE'].includes(key))));
-const child=spawn(executable,args,{stdio:'inherit',env:{...env,TERVORY_PANEL_TEST_RESULT:result}});
+const child=spawn(executable,args,{stdio:'inherit',env:{...env,ELECTRON_ENABLE_LOGGING:'1',ELECTRON_ENABLE_STACK_DUMPING:'1',ELECTRON_LOG_FILE:resolve(root,'.tmp/boot-user/logs/electron.log'),TERVORY_PANEL_TEST_RESULT:result}});
 const timer=setTimeout(()=>child.kill('SIGKILL'),180000);
 child.on('exit',async code=>{
  clearTimeout(timer);

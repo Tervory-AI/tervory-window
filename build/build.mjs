@@ -7,6 +7,7 @@ import { installExtensions } from './extensions.mjs';
 import { installTunnel } from './tunnel.mjs';
 import { linuxEnvironment } from './native-environment.mjs';
 import { checkLinuxAbi } from './linux-abi.mjs';
+import { sealMacApp } from './macos-integrity.mjs';
 const platform = process.platform; const arch = process.arch;
 if (!['win32', 'darwin', 'linux'].includes(platform) || !['x64', 'arm64'].includes(arch)) throw Error('Unsupported build host');
 if (process.versions.node.split('.')[0] !== pin.node.split('.')[0]) throw Error(`Use Node ${pin.node}`);
@@ -28,6 +29,7 @@ await installTunnel(source, built, pin);
 const resources = platform === 'darwin' ? resolve(built, 'Tervory.app/Contents/Resources/app') : resolve(built, 'resources/app');
 await rm(resolve(resources, 'extensions/copilot'), { recursive: true, force: true });
 await installExtensions(root, resources);
+if (platform === 'darwin') await sealMacApp(source, resolve(built, 'Tervory.app'));
 const out = resolve(root, 'dist'); await mkdir(out, { recursive: true });
 // Use the upstream platform installers. Signing stays off until configured.
 if (platform === 'win32') {
@@ -61,5 +63,5 @@ for (const name of await readdir(out)) {
   sums += `${createHash('sha256').update(await readFile(resolve(out, name))).digest('hex')}  ${name}\n`;
 }
 await writeFile(resolve(out, 'SHA256SUMS'), sums);
-await writeFile(resolve(out, 'build.json'), JSON.stringify({ upstream: pin, platform, arch, signed: false, files: await readdir(out) }, null, 2));
+await writeFile(resolve(out, 'build.json'), JSON.stringify({ upstream: pin, platform, arch, signed: false, integritySignature: platform === 'darwin' ? 'ad-hoc' : undefined, files: await readdir(out) }, null, 2));
 console.log(resolve(out, file));

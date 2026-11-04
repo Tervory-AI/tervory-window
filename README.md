@@ -55,3 +55,8 @@ channel and its optional prewarmed Node cache. Native boot and editor tests rema
 required on every build target. Windows uses the runner's SDK signature tool to
 verify and remove upstream signatures before patching metadata; no signing key
 is used, and Tervory installers remain unsigned.
+
+macOS app bundles receive a free ad-hoc integrity seal after branding and built-in
+extension installation, using the upstream entitlements. This is not Developer ID
+signing or notarization; installers remain unsigned and build metadata records
+`integritySignature: "ad-hoc"` separately from `signed: false`.
