@@ -16,3 +16,7 @@ Frames needed: task launch (repository, credential name, prompt), named GitHub
 vault credential form, task progress with one Cancel action, failure/interrupted
 state, PR result with receipt link, and running/finished task list. The PR-review
 launch, webhook opt-in and review result frames will be listed with Gate 2.
+
+Validation: from this extension directory, run `bash scripts/precheck.sh /path/to/tervory-tank`.
+The window main currently contains its ownership README; this extension check reuses
+Tank's pinned gitleaks, Semgrep and OSV gates without rule or file exclusions.
