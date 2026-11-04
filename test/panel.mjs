@@ -20,11 +20,12 @@ export async function scenario(name) {
   const context={subscriptions:[],secrets:{get:async key=>secrets.get(key),store:async(key,value)=>secrets.set(key,value),delete:async key=>secrets.delete(key)}};
   const commands=new Map();
   const vscode={
-    Uri:{parse:uri}, EventEmitter:class{event=()=>({dispose(){}});fire(value){terminals.push(value);}dispose(){}},
+    Uri:{parse:uri,file:uri}, Range:class{constructor(...args){this.args=args;}},
+    extensions:{getExtension(id){assert.equal(id,'tervory.tervory-index');if(!['index-context','search'].includes(name))return;return{activate:async()=>({getRelevantCode:async(query,options)=>{assert(options.maxCharacters===12000);return[{path:'file.txt',startLine:1,endLine:1,text:'cached text must not be trusted'},{path:'.git/config',startLine:1,endLine:1,text:'must not be sent'}];},search:async()=>[{path:'file.txt',startLine:1,endLine:1,text:'cached text must not be trusted'}]})};}}, EventEmitter:class{event=()=>({dispose(){}});fire(value){terminals.push(value);}dispose(){}},
     workspace:{isTrusted:true,workspaceFolders:[{uri:uri(root)}],asRelativePath:()=> 'file.txt',registerTextDocumentContentProvider:()=>({dispose(){}})},
     env:{openExternal:async value=>{assert(value.toString().startsWith('https://'));}},
     commands:{registerCommand:(id,fn)=>{commands.set(id,fn);return{dispose(){}};},executeCommand:async(...args)=>{previews.push(args);}},
-    window:{activeTextEditor:{document:{uri:uri(join(root,'file.txt'))}},showQuickPick:async items=>items.find(item=>item.value===region),
+    window:{activeTextEditor:{document:{uri:uri(join(root,'file.txt'))}},showQuickPick:async items=>items.find(item=>item.value===region),showTextDocument:async(...args)=>{previews.push(args);},
       showWarningMessage:async()=>prompt,createTerminal:()=>({show(){},dispose(){}}),
       registerWebviewViewProvider:(id,provider)=>{api=provider;return{dispose(){}};}},
   };
@@ -55,7 +56,7 @@ export async function scenario(name) {
         return Response.json({answer:'',receipt,requests:[{name:'run_command',arguments:{command:'echo panel-command'}}]});
       }
       if(!body.continuation)round=0;
-      if(name==='ask'){
+      if(name==='ask'||name==='index-context'){
         const requests=round++===0?[{name:'list_files',arguments:{}}]:round===2?[{name:'read_file',arguments:{path:'file.txt'}}]:[];
         if(round===2)assert(body.tool_results.some(item=>item.name==='list_files'&&item.output.includes('file.txt')));
         if(!requests.length)assert(body.tool_results.some(item=>item.output.includes('old')));
@@ -69,7 +70,9 @@ export async function scenario(name) {
   try {
     const result=await activate(vscode,context);
     api.resolveWebviewView({webview:{options:{},postMessage:value=>{outputs.push(value);if(value.type==='approval')queueMicrotask(()=>message({type:'approve',id:value.id,approved:prompt==='Confirm'}));},onDidReceiveMessage:fn=>{message=fn;return{dispose(){}};}},onDidDispose:fn=>{disposed=fn;return{dispose(){}};}});
-    if(name==='ask') {const running=message({type:'code',text:'Explain this project'});await until(()=>outputs.some(x=>x.type==='ready'));assert(outputs.some(x=>x.text?.includes('Project answer.')));assert(outputs.some(x=>x.text?.includes('0.01')));await message({type:'cancel'});await running;}
+    if(name==='search'){await message({type:'search',query:'old'});const result=outputs.find(item=>item.type==='search');assert.deepEqual(result.matches,[{path:'file.txt',startLine:1,endLine:1,text:'old'}]);await message({type:'searchOpen',index:0});assert(previews.some(args=>args[0].fsPath?.endsWith('file.txt')));assert.equal(calls.length,0);}
+    else if(name==='index-context'){const running=message({type:'code',text:'Explain this project'});await until(()=>outputs.some(x=>x.type==='ready'));const turn=calls.find(x=>x.path.endsWith('/code-turn'));assert(turn.body.text.includes('Project context DATA'));assert(turn.body.text.includes('old'));assert(!turn.body.text.includes('cached text'));assert(!turn.body.text.includes('.git/config'));await message({type:'cancel'});await running;}
+    else if(name==='ask') {const running=message({type:'code',text:'Explain this project'});await until(()=>outputs.some(x=>x.type==='ready'));assert(outputs.some(x=>x.text?.includes('Project answer.')));assert(outputs.some(x=>x.text?.includes('0.01')));await message({type:'cancel'});await running;}
     else if(name==='plugins'){await message({type:'plugins'});assert(outputs.some(x=>x.type==='plugins'&&JSON.stringify(x.items).includes('list_issues')&&JSON.stringify(x.items).includes('Installed · 1.0.0')));}
     else if(name==='offline'){await message({type:'code',text:'explain'});assert(outputs.some(x=>x.type==='error'&&x.offline));assert.equal(calls.length,1);}
     else if(name==='command'||name==='command-deny'){

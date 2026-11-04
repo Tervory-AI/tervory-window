@@ -9,3 +9,5 @@ Implementation targets: sign-in 548:77, empty 553:1326, conversation 555:284, co
 The built-in panel uses the approved wording, Inter, navy outline actions with 48px controls, white surfaces, a shared header and composer. Code-OSS supplies native editor chrome; the webview does not redraw it. Dynamic paths, outputs, receipts and device codes come from the CLI/Tank; illustrative design values are not inserted as live results.
 
 Autocomplete, inline edits, indexing, background agents and PR comments are integrated from their owners. The source agent register governs their visible basics.
+
+Codebase search uses the approved 557:2245 labels: Codebase search, Search this project, match/file counts and Open first result. The built-in index remains local; source snippets are checked by CLI folder rules before the panel sends them to Tank. The Background agents view is docked in the Tervory container and uses Running and Finished from 557:2423.

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdir, writeFile, cp, chmod } from 'node:fs/promises';
+import { mkdir, writeFile, cp, chmod, access } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -20,9 +20,10 @@ export async function installTunnel(source, built, pin) {
   if (createHash('sha512').update(bytes).digest('base64') !== 'rjiSXtuQFN9zvvsUiouSynrK59cXrdQaOY/2D3dk6NWjYoSrI2Q4YfQAYNmNp/YunevGN2tTxQlI7k842HidkA==') throw Error('OpenSSL checksum mismatch');
   await writeFile(resolve(openssl, 'openssl.tgz'), bytes);
   execFileSync('tar', ['-xzf', 'openssl.tgz'], { cwd: openssl, stdio: 'inherit' });
-  const platform = process.platform === 'linux' ? 'linux' : process.platform === 'darwin' ? 'osx' : 'windows-static-md';
+  const platform = process.platform === 'linux' ? 'linux' : process.platform === 'darwin' ? 'osx' : 'windows-static';
   const env = { ...process.env, VSCODE_CLI_PRODUCT_JSON: resolve(source, 'product.json'),
     OPENSSL_DIR: resolve(openssl, `package/out/${process.arch}-${platform}`), OPENSSL_STATIC: '1' };
+  await access(resolve(env.OPENSSL_DIR, 'include/openssl/ssl.h'));
   if (process.platform === 'linux') {
     env.VSCODE_SYSROOT_DIR = resolve(source, '.build/tunnel-sysroot');
     // The upstream sysroot download verifies its recorded SHA256. Its cross

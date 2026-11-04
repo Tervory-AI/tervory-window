@@ -9,7 +9,7 @@ let deactivateCurrent:()=>Promise<void>=async()=>{};
 export function deactivate():Promise<void> {return deactivateCurrent();}
 export async function activate(context:vscode.ExtensionContext) {
   const indexes = new Map<string,ProjectIndex>();
-  const output = vscode.window.createOutputChannel('[Project index]');
+  const output = vscode.window.createOutputChannel('Project index');
   context.subscriptions.push(output);
   let timer:ReturnType<typeof setTimeout>|undefined;
   let running = Promise.resolve();
@@ -86,20 +86,20 @@ export async function activate(context:vscode.ExtensionContext) {
     }
   };
   context.subscriptions.push(vscode.commands.registerCommand('tervory.index.search',async()=>{
-    const mode=await vscode.window.showQuickPick([{label:'[Meaning]',mode:'meaning' as const},{label:'[Exact match]',mode:'exact' as const}],{placeHolder:'[Search mode]'});
+    const mode=await vscode.window.showQuickPick([{label:'Meaning',mode:'meaning' as const},{label:'Exact match',mode:'exact' as const}],{placeHolder:'Search mode'});
     if (!mode) return;
-    const query=await vscode.window.showInputBox({prompt:'[Search project]'});
+    const query=await vscode.window.showInputBox({prompt:'Search this project'});
     if (!query?.trim()) return;
     try {
       const matches=await api.search(query,{mode:mode.mode});
-      if (!matches.length) {void vscode.window.showInformationMessage('[No matches]');return;}
-      const selected=await vscode.window.showQuickPick(matches.map(hit=>({label:hit.path,description:`${hit.startLine}:${hit.endLine}`,detail:hit.text.slice(0,160),hit})),{placeHolder:'[Search results]'});
+      if (!matches.length) {void vscode.window.showInformationMessage('No matches');return;}
+      const selected=await vscode.window.showQuickPick(matches.map(hit=>({label:hit.path,description:`${hit.startLine}:${hit.endLine}`,detail:hit.text.slice(0,160),hit})),{placeHolder:'Search results'});
       if (selected) {
         const editor=await vscode.window.showTextDocument(vscode.Uri.parse(selected.hit.uri));
         const range=new vscode.Range(selected.hit.startLine-1,0,selected.hit.endLine-1,0);
         editor.selection=new vscode.Selection(range.start,range.end); editor.revealRange(range);
       }
-    } catch {void vscode.window.showErrorMessage('[Search unavailable]');}
+    } catch {void vscode.window.showErrorMessage('Search unavailable');}
   }));
   return api;
 }

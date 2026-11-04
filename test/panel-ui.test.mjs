@@ -37,6 +37,14 @@ test('approved panel states render safely and send the matching actions',async()
   assert(await page.getByText('MCP / GitHub').isVisible());
   await post({type:'error',text:'Code tool refused.',offline:false});
   assert(await page.getByText('No action was retried.').isVisible());
+  await post({type:'search',query:'old',matches:[{path:'file.txt',startLine:1,text:'old'}]});
+  assert(await page.getByRole('heading',{name:'Codebase search'}).isVisible());
+  assert(await page.getByText('1 match · 1 file').isVisible());
+  await page.getByRole('button',{name:'Open first result'}).click();
+  assert.deepEqual(await page.evaluate(()=>calls.at(-1)),{type:'searchOpen',index:0});
+  await page.getByRole('textbox',{name:'Search this project'}).fill('new');
+  await page.getByRole('textbox',{name:'Search this project'}).press('Enter');
+  assert.deepEqual(await page.evaluate(()=>calls.at(-1)),{type:'search',query:'new'});
   await post({type:'newChat'});await post({type:'error',offline:true});await post({type:'ready'});
   assert(await page.getByText('Connection lost.').isVisible());assert(await page.getByRole('button',{name:'Send',exact:true}).isDisabled());
   await page.screenshot({path:'.tmp/panel-offline.png'});

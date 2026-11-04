@@ -50,10 +50,11 @@
       }
     ],
     "views": {
-      "explorer": [
+      "tervory": [
         {
           "id": "tervory.agents",
-          "name": "Agents"
+          "name": "Background agents",
+          "visibility": "collapsed"
         }
       ]
     },

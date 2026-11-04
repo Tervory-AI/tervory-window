@@ -8,8 +8,8 @@ test('actual integrated built-ins install with loadable CLI, fonts and entry poi
  const root=resolve(import.meta.dirname,'..');const out=await mkdtemp(resolve(root,'.tmp/installed-'));
  try{
   const ids=await installExtensions(root,out);
-  for(const id of ['tervory.tervory-panel','tervory.tervory-complete','tervory.tervory-agents'])assert(ids.includes(id));
-  for(const name of ['extension','tervory-complete','tervory-agents']){
+  for(const id of ['tervory.tervory-panel','tervory.tervory-complete','tervory.tervory-agents','tervory.tervory-index'])assert(ids.includes(id));
+  for(const name of ['extension','tervory-complete','tervory-agents','tervory-index']){
    const folder=resolve(out,'extensions',name),pkg=JSON.parse(await readFile(resolve(folder,'package.json')));
    await access(resolve(folder,pkg.main));
   }

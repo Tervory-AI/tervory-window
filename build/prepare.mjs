@@ -37,6 +37,11 @@ export async function prepare() {
   const tasks = await readFile(gulpfile, 'utf8');
   const patched = tasks.replace(', compileCopilotExtensionBuildTask', '').replace(/^\s*compileCopilotExtensionBuildTask,\r?\n/gm, '').replace(/^\s*prepareCopilotRipgrepShimTask\(platform, arch, destinationFolderName\)\r?\n/gm, '');
   await writeFile(gulpfile, patched);
+  // The local ONNX embedding runtime needs GLIBCXX_3.4.22 (GCC 6).
+  // Keep upstream core dependency generation strict and declare our extension's
+  // additional runtime requirement in the installer control template.
+  const control = resolve(source, 'resources/linux/debian/control.template');
+  await writeFile(control, (await readFile(control, 'utf8')).replace('Depends: @@DEPENDS@@\n', 'Depends: @@DEPENDS@@, libstdc++6 (>= 6)\n'));
   const logo = await readFile(resolve(root, 'vendor/brand/tervory-logo.png'));
   // Format conversion of the exact supplied logo, never a replacement drawing.
   const ico = createICO(logo, 0, 0, true); const icns = createICNS(logo, 0, 0);

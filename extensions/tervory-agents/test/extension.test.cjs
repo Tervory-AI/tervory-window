@@ -92,6 +92,9 @@ test('one inline cancel action applies only to queued or running tasks', async t
   const items = await f.provider.getChildren(groups[0]);
   const finished = await f.provider.getChildren(groups[1]);
   assert.equal(items[0].contextValue, 'tervoryAgent.running');
+  assert.equal(items[0].description, 'Running');
+  assert.equal(finished[0].description, 'Finished');
+  assert.equal(manifest.contributes.views.tervory[0].name, 'Background agents');
   assert.equal(finished[0].contextValue, 'tervoryAgent.pr');
   assert.equal(manifest.contributes.menus['view/item/context'].filter(x => x.command === 'tervory.agents.cancel').length, 1);
   await f.commands.get('tervory.agents.cancel')(items[0]);

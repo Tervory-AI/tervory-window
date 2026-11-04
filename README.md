@@ -11,7 +11,10 @@ Tervory CLI. The other built-in components live under `extensions/`:
 - `tervory-index`: private local project indexing.
 - `tervory-agents`: background agents and PR review.
 
-Autocomplete and inline edits read the project rules.
+Autocomplete and inline edits read the project rules. The panel uses the local
+index for bounded context and Codebase search, re-reading selected source through
+the CLI folder checks before sending any snippets to Tank. The Background agents
+view shares the right-hand Tervory container and the panel Trigger sign-in.
 
 Build scripts discover every component under `extensions/`. Code-OSS source is
 fetched at a fixed commit; the whole fork is never vendored here.

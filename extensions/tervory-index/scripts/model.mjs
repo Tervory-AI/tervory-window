@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../models/Xenova/all-MiniLM-L6-v2/',import.meta.url));
 const manifest = JSON.parse(await readFile(new URL('./model-lock.json',import.meta.url),'utf8'));
 for (const [file,hash] of Object.entries(manifest.files)) {
+  const existing = await readFile(path.join(root,file)).catch(()=>null);
+  if (existing && createHash('sha256').update(existing).digest('hex') === Buffer.from(hash).toString('hex')) continue;
   const response = await fetch(`https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/${manifest.revision}/${file}`);
   if (!response.ok) throw new Error(`Model download failed: ${response.status}`);
   const data = Buffer.from(await response.arrayBuffer());

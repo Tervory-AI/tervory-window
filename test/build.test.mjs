@@ -13,6 +13,9 @@ test('pinned Code-OSS source is MIT and the real product patch uses Open VSX wit
   assert(!/^\s*compileCopilotExtensionBuildTask,/m.test(tasks));
   assert(!tasks.includes('prepareCopilotRipgrepShimTask(platform, arch, destinationFolderName)'));
   assert(tasks.includes('compileNativeExtensionsBuildTask'));
+  const dependencies = await readFile(resolve(source, 'build/linux/dependencies-generator.ts'), 'utf8');
+  assert.match(dependencies, /FAIL_BUILD_FOR_NEW_DEPENDENCIES: boolean = true/);
+  assert.match(await readFile(resolve(source, 'resources/linux/debian/control.template'), 'utf8'), /Depends: @@DEPENDS@@, libstdc\+\+6 \(>= 6\)/);
   const installer = await readFile(resolve(source, 'build/win32/code.iss'), 'utf8');
   assert.match(installer, /AppPublisher=Tervory/);
   assert(!installer.includes('inno-big-') && !installer.includes('inno-small-'));

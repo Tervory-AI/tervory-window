@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const lock=JSON.parse(await fs.readFile(new URL('./editor-lock.json',import.meta.url),'utf8'));
 const asset=lock.assets[`${process.platform}-${process.arch}`];
-if (!asset) throw new Error('Unsupported editor test platform');
+if (!asset && !process.env.VSCODE_EXECUTABLE_PATH) throw new Error('Unsupported editor test platform');
 const cache=process.env.TERVORY_EDITOR_CACHE??path.join(root,'.vscode-test');
 const directory=path.join(cache,`${process.platform}-${process.arch}`);
 async function editorExecutable() {
@@ -19,7 +19,8 @@ async function editorExecutable() {
   const binary=execFileSync('/usr/bin/plutil',['-extract','CFBundleExecutable','raw','-o','-',path.join(contents,'Info.plist')],{encoding:'utf8'}).trim();
   return path.join(contents,'MacOS',binary);
 }
-let executable;
+let executable=process.env.VSCODE_EXECUTABLE_PATH;
+if (!executable) {
 try {executable=await editorExecutable();await fs.access(executable);} catch {
   await fs.mkdir(directory,{recursive:true});
   const response=await fetch(`https://github.com/VSCodium/vscodium/releases/download/${lock.version}/${asset.file}`);
@@ -35,6 +36,8 @@ try {executable=await editorExecutable();await fs.access(executable);} catch {
   await fs.unlink(archive);
   executable=await editorExecutable();await fs.access(executable);
 }
+}
+await fs.access(executable);
 const project=path.join(cache,'fixture');
 await fs.rm(project,{recursive:true,force:true});
 await fs.mkdir(project,{recursive:true});
@@ -42,6 +45,8 @@ await fs.writeFile(path.join(project,'account.ts'),'// Recover access when a use
 await fs.writeFile(path.join(project,'landscape.ts'),'// Paint trees, mountains and a river on a canvas.\nexport function drawLandscape() { return "green"; }\n');
 const profile=await fs.mkdtemp(path.join(process.env.TMPDIR??tmpdir(),'vi-'));
 try {
-await runTests({vscodeExecutablePath:executable,extensionDevelopmentPath:root,extensionTestsPath:path.join(root,'dist/test/electron.test.js'),
+const result=path.join(profile,'index-passed');
+await runTests({extensionTestsEnv:{TERVORY_INDEX_TEST_RESULT:result},vscodeExecutablePath:executable,extensionDevelopmentPath:root,extensionTestsPath:path.join(root,'dist/test/electron.test.js'),
   launchArgs:[project,'--no-sandbox','--disable-gpu','--disable-workspace-trust','--skip-welcome','--skip-release-notes','--disable-telemetry','--user-data-dir',profile,'--extensions-dir',path.join(directory,'extensions')]});
+if(await fs.readFile(result,'utf8')!=='passed')throw new Error('Index editor suite did not finish');
 } finally {await fs.rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:200});}

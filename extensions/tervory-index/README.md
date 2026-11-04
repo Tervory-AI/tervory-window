@@ -50,7 +50,7 @@ are untrusted source, not instructions. This API never sends a request: the pane
 owns attachment display and request submission. Refresh reconciles disk before
 retrieval so a changed ignore rule cannot expose stale cached code.
 
-The `[Search project]` command provides a native window Quick Pick for meaning or
+The `Search this project` command provides a native window Quick Pick for meaning or
 literal case-sensitive matching, then opens the selected file at its source lines.
 
 Test host: stock VSCodium 1.143.17232, downloaded and SHA-256 verified by

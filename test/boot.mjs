@@ -16,6 +16,8 @@ child.on('exit',async code=>{
  if(code!==0){process.exitCode=code??1;return;}
  try{if(await readFile(result,'utf8')!=='passed')throw Error('Panel suite did not finish');}catch(error){console.error(error);process.exitCode=1;return;}
  const complete=spawnSync(process.execPath,['test/run.cjs'],{cwd:resolve(root,'extensions/tervory-complete'),stdio:'inherit',env:{...env,VSCODE_EXECUTABLE_PATH:executable,TERVORY_BUILT_WINDOW:'1'},timeout:180000});
- process.exitCode=complete.status??1;
+ if(complete.status!==0){process.exitCode=complete.status??1;return;}
+ const index=spawnSync(process.execPath,['scripts/electron.mjs'],{cwd:resolve(root,'extensions/tervory-index'),stdio:'inherit',env:{...env,VSCODE_EXECUTABLE_PATH:executable,TERVORY_EDITOR_CACHE:resolve(root,'.tmp/index-native')},timeout:180000});
+ process.exitCode=index.status??1;
 });
 child.on('error',error=>{clearTimeout(timer);console.error(error);process.exitCode=1});

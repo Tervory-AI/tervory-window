@@ -28,7 +28,7 @@ function activate(context) {
         const rows = await call('jobs');
         const render = row => {
           const item = new vscode.TreeItem(row.kind === 'review' ? `${row.repo} #${row.pull_number}` : row.repo);
-          item.description = row.status;
+          item.description = ({ queued: 'Waiting', running: 'Running', done: 'Finished', failed: 'Error', cancelled: 'Cancelled' })[row.status] ?? row.status;
           item.tooltip = row.kind === 'review' ? 'Pull request review' : 'Background task';
           item.jobId = row.job_id;
           const running = ['queued', 'running'].includes(row.status);

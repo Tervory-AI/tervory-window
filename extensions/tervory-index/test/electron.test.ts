@@ -13,9 +13,11 @@ export async function run():Promise<void> {
   const exact=await api.search('resetPassword(email:',{mode:'exact'});
   assert.equal(exact[0].path,'account.ts'); assert.equal(exact[0].startLine,2);
   assert.equal((await api.search('RESETPASSWORD',{mode:'exact'})).length,0);
+  console.log('PASS index search: account.ts ranks first and exact matching preserves source lines');
   const attached=await api.getRelevantCode('forgot password',{maxCharacters:200});
   assert.ok(attached.length>0);assert.ok(attached.reduce((n,m)=>n+m.text.length,0)<=200);
   assert.ok(attached.every(m=>m.uri.startsWith('file:')));
+  console.log('PASS index context: local source URIs and a 200-character budget');
   const root=vscode.workspace.workspaceFolders![0].uri.fsPath;
   const changed=path.join(root,'created.ts');
   await fs.writeFile(changed,'export const watcherCreated = 1;');
@@ -33,6 +35,12 @@ export async function run():Promise<void> {
   await waitFor(()=>api.fileCount()===1);
   assert.equal((await api.search('resetPassword',{mode:'exact'})).length,0);
   await fs.unlink(path.join(root,'.tervoryignore'));await waitFor(()=>api.fileCount()===2);
+  console.log('PASS index refresh: create, change, delete and ignore-rule watchers');
+  await vscode.commands.executeCommand('tervory.index.rebuild');
+  assert.equal(api.fileCount(),2);
+  console.log('PASS index rebuild: command reconciles the two-file fixture');
   assert.ok((await vscode.commands.getCommands()).includes('tervory.index.search'));
-  console.log('Stock VSCodium: activation, real semantic and literal retrieval, attachment budget and file watchers passed.');
+  if (!process.env.TERVORY_INDEX_TEST_RESULT) throw new Error('Missing index test result path');
+  await fs.writeFile(process.env.TERVORY_INDEX_TEST_RESULT,'passed');
+  console.log('Index editor: activation, real semantic and literal retrieval, attachment budget and file watchers passed.');
 }

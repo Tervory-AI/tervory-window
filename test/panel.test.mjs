@@ -1,3 +1,3 @@
 import test from 'node:test';
 import {scenario} from './panel.mjs';
-for(const name of ['ask','signin-us','signin-za','undo','partial','reject','trust','command','command-deny','plugins','offline','stale','cancel-review'])test(name,{concurrency:false},()=>scenario(name));
+for(const name of ['ask','signin-us','signin-za','undo','partial','reject','trust','command','command-deny','plugins','offline','stale','cancel-review','index-context','search'])test(name,{concurrency:false},()=>scenario(name));
