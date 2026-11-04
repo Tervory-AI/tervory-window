@@ -30,7 +30,17 @@ if (platform === 'win32') {
   const debs = resolve(source, `.build/linux/deb/${arch === 'x64' ? 'amd64' : 'arm64'}/deb`);
   for (const deb of await readdir(debs)) if (deb.endsWith('.deb')) await cp(resolve(debs, deb), resolve(out, deb));
 } else {
-  execFileSync('hdiutil', ['create', '-volname', 'Tervory', '-srcfolder', built, '-ov', '-format', 'UDZO', resolve(out, `tervory-window-darwin-${arch}.dmg`)], { stdio: 'inherit' });
+  const image = resolve(out, `tervory-window-darwin-${arch}.dmg`);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const output = execFileSync('hdiutil', ['create', '-volname', 'Tervory', '-srcfolder', built, '-fs', 'HFS+', '-ov', '-format', 'UDZO', image], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+      process.stdout.write(output); break;
+    } catch (error) {
+      const message = String(error.stderr ?? ''); process.stderr.write(message);
+      if (attempt === 4 || !message.includes('Resource busy')) throw error;
+      await new Promise(done => setTimeout(done, 1000 * 2 ** attempt));
+    }
+  }
 }
 const file = `tervory-window-${platform}-${arch}.tar.gz`;
 execFileSync('tar', ['-czf', '../../dist/' + file, '.'], { cwd: built, stdio: 'inherit' });
