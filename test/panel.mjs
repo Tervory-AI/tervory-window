@@ -76,7 +76,7 @@ export async function scenario(name) {
         const transport=globalThis.fetch;
         globalThis.fetch=async(url,init)=>{const response=await transport(url,init);if(String(url).endsWith('/device/code'))return Response.json({...await response.json(),identity_provider:'zitadel',user_code:'1234-5678',verification_uri:'https://auth-za.tervory.com/device',verification_uri_complete:'https://auth-za.tervory.com/device?user_code=1234-5678'});return response;};
       }
-      await result.signIn();assert(JSON.parse(secrets.get('tervory.session')).region===region);
+      await result.signIn();assert(outputs.some(x=>x.type==='deviceCode'&&x.code===(region==='za'?'1234-5678':'BCDF-GHJK')));assert(!outputs.some(x=>x.text?.includes('auth-za')));assert(JSON.parse(secrets.get('tervory.session')).region===region);
     } else if(name==='trust') {vscode.workspace.isTrusted=false;await message({type:'code',text:'change files'});assert.equal(calls.length,0);assert(outputs.some(x=>x.text?.includes('Trust')));}
     else {
       const running=message({type:'code',text:'change both files'});

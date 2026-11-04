@@ -37,7 +37,7 @@ test('approved panel states render safely and send the matching actions',async()
   assert(await page.getByText('MCP / GitHub').isVisible());
   await post({type:'error',text:'Code tool refused.',offline:false});
   assert(await page.getByText('No action was retried.').isVisible());
-  await post({type:'newChat'});await post({type:'error',offline:true});
+  await post({type:'newChat'});await post({type:'error',offline:true});await post({type:'ready'});
   assert(await page.getByText('Connection lost.').isVisible());assert(await page.getByRole('button',{name:'Send',exact:true}).isDisabled());
   await page.screenshot({path:'.tmp/panel-offline.png'});
  }finally{await browser.close();}
