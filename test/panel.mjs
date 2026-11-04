@@ -9,7 +9,7 @@ import { activate } from '../extension/src/extension.mjs';
 const token = region => `tv1.${region}.${'1'.repeat(32)}.${('placeholder'+'x'.repeat(43)).slice(0,43)}`;
 const receipt = {rows:[{cost_usd:0.01,baseline_cost_usd:0.04,saved_usd:0.03}]};
 const patch = name => `--- a/${name}\n+++ b/${name}\n@@ -1 +1 @@\n-old\n+new\n`;
-export async function scenario(name) {
+export async function scenario(name, activatePanel = activate) {
   const root = await mkdtemp(join(tmpdir(),'window-proof-'));
   execFileSync('git',['init','-q',root]);
   for(const file of ['file.txt','second.txt'])await writeFile(join(root,file),'old\n');
@@ -68,7 +68,7 @@ export async function scenario(name) {
     throw Error('Unexpected fixture route: '+parsed.pathname);
   };
   try {
-    const result=await activate(vscode,context);
+    const result=await activatePanel(vscode,context);
     api.resolveWebviewView({webview:{options:{},postMessage:value=>{outputs.push(value);if(value.type==='approval')queueMicrotask(()=>message({type:'approve',id:value.id,approved:prompt==='Confirm'}));},onDidReceiveMessage:fn=>{message=fn;return{dispose(){}};}},onDidDispose:fn=>{disposed=fn;return{dispose(){}};}});
     if(name==='rules'){
       await mkdir(join(root,'.tervory'));await writeFile(join(root,'.tervory/rules'),'Use clear names.');

@@ -31,7 +31,9 @@ exports.run=async vscode=>{
   }
   throw Error('Unexpected native fixture route '+route);
  };
- const {activate}=await import('../extension/src/extension.mjs');
+ const installed=vscode.extensions.getExtension('tervory.tervory-panel');
+ assert(installed?.extensionPath,'Packaged panel path is available');
+ const {activate}=await import(require('node:url').pathToFileURL(path.join(installed.extensionPath,'src/extension.mjs')).href);
  const context={subscriptions,secrets:{get:async key=>secrets.get(key),store:async(key,value)=>secrets.set(key,value),delete:async key=>secrets.delete(key)}};
  try{
   const native={Uri:vscode.Uri,EventEmitter:vscode.EventEmitter,workspace:vscode.workspace,env:vscode.env,window:new Proxy(vscode.window,{get(target,key){if(key==='registerWebviewViewProvider')return(id,value)=>{provider=value;return{dispose(){}};};return Reflect.get(target,key);}}),commands:new Proxy(vscode.commands,{get(target,key){return key==='registerCommand'?()=>({dispose(){}}):Reflect.get(target,key);}})};
