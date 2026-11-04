@@ -7,7 +7,7 @@ function activate(context) {
     const token = await context.secrets.get('tervory.personal');
     const match = /^tv1\.(us-east|za)\.[0-9a-f]{32}\.[A-Za-z0-9_-]{43}$/.exec(token || '');
     if (!match) throw new Error('Connect Tervory first.');
-    const response = await fetch(ORIGINS[match[1]] + '/v1/window-agents/' + path, {
+    const response = await fetch(ORIGINS[match[1]] + (match[1] === 'us-east' ? '/v1/command/window-agents/' : '/v1/window-agents/') + path, {
       method: method || (body ? 'POST' : 'GET'),
       headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
@@ -67,7 +67,7 @@ function activate(context) {
     const name = await vscode.window.showInputBox({ prompt: 'Credential name' });
     if (!name) return;
     const value = await vscode.window.showInputBox({ prompt: 'GitHub token — saved in your vault', password: true, ignoreFocusOut: true });
-    if (value) await call('vault/github', { name, value }, 'PUT');
+    if (value) await call('vault/github', { name, value });
   });
   register('tervory.agents.start', async () => {
     const names = await call('vault/github');
