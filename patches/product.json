@@ -24,17 +24,19 @@
     "itemUrl": "https://open-vsx.org/vscode/item",
     "resourceUrlTemplate": "https://open-vsx.org/vscode/unpkg/{publisher}/{name}/{version}/{path}"
   },
-  "reportIssueUrl": "https://github.com/Tervory-AI/tervory-tank/issues",
-  "win32x64AppId": "{{47B47404-6D74-4FA8-A6D9-3C4797620B9D}",
-  "win32arm64AppId": "{{76AC2959-3A92-471F-8468-BCB512D29F06}",
-  "win32x64UserAppId": "{{E0D550B6-B477-4E8B-981D-57DA84954576}",
-  "win32arm64UserAppId": "{{CD422696-BC06-41CE-8D85-E678D811EB13}",
+  "reportIssueUrl": "https://github.com/Tervory-AI/tervory-window/issues",
+  "win32x64AppId": "{{F0F7B0E1-6F44-4E0E-93FF-54422B1C120C}",
+  "win32arm64AppId": "{{099ED25F-4DF5-4A3C-9E77-8FA5BF8F17DA}",
+  "win32x64UserAppId": "{{7AB6ED8E-0D5E-4236-9DFE-BD9ADEF2D8EE}",
+  "win32arm64UserAppId": "{{964CEFFB-63FA-490E-88A6-8C1AE0EC5F89}",
   "win32TunnelMutex": "tervory-tunnel",
   "win32TunnelServiceMutex": "tervory-tunnel-service",
   "win32VersionedUpdate": false,
   "quality": "oss",
   "updateUrl": null,
-  "downloadUrl": "https://github.com/Tervory-AI/tervory-tank",
+  "downloadUrl": "https://github.com/Tervory-AI/tervory-window",
   "licenseName": "MIT",
-  "licenseUrl": "https://opensource.org/license/mit"
+  "licenseUrl": "https://opensource.org/license/mit",
+  "darwinProfileUUID": "308CDC1A-32AA-42B6-A803-8DD9FCD7097D",
+  "darwinProfilePayloadUUID": "17720D89-FCC3-4DDF-A99C-C6929E17CE88"
 }

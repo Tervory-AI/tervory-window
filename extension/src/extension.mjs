@@ -8,7 +8,7 @@ export async function activate(vscode, context) {
   const store = { get: () => context.secrets.get('tervory.session'), set: value => context.secrets.store('tervory.session', value), remove: () => context.secrets.delete('tervory.session') };
   const documents = new Map();
   context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('tervory-diff', { provideTextDocumentContent: uri => documents.get(uri.toString()) ?? '' }));
-  let view; let session; let busy = false; let review; let terminal;
+  let view; let session; let busy = false; let review; let terminal; let terminalOutput;
   const send = value => view?.webview.postMessage(value);
   const write = value => send({ type: 'output', text: client.safe(redactSecrets(String(value))) });
   const folder = () => {
@@ -18,15 +18,17 @@ export async function activate(vscode, context) {
     return roots[0].uri.fsPath;
   };
   async function signIn() {
-    const region = await vscode.window.showQuickPick([{ label: 'US', value: 'us-east' }, { label: 'ZA', value: 'za' }], { title: 'Sign in to Tervory' });
+    const region = await vscode.window.showQuickPick([{ label: 'US', value: 'us-east' }, { label: 'ZA', value: 'za' }], { title: 'Trigger sign-in' });
     if (!region) return;
     await client.run(['login', '--region', region.value], { store, io: { interactive: true, write, deviceName: () => 'Tervory desktop', open: url => vscode.env.openExternal(vscode.Uri.parse(url)) } });
   }
   async function reviewEdit(local, patch, signal) {
     const files = splitDiff(patch); const cards = []; let index = 0;
     for (const file of files) {
-      const before = await local.read(file.name);
-      const after = await applyDiff(before.text ?? '', file.patch, file.name, !before.exists, local.root);
+      // Preview must not replace the original prior-read hash used by edit().
+      const current = await local.raw(file.name);
+      const before = { exists: current !== null, text: current?.text ?? '' };
+      const after = await applyDiff(before.text, file.patch, file.name, !before.exists, local.root);
       const id = randomBytes(16).toString('hex');
       const left = vscode.Uri.parse(`tervory-diff:/${id}/before/${encodeURIComponent(file.name)}`);
       const right = vscode.Uri.parse(`tervory-diff:/${id}/after/${encodeURIComponent(file.name)}`);
@@ -51,7 +53,12 @@ export async function activate(vscode, context) {
     const io = {
       interactive: true, signal: abort.signal, write,
       prompt: async prompt => {
-        if (prompt === '> ') { busy = false; send({ type: 'ready' }); return input.next(); }
+        if (prompt === '> ') {
+          if (!input.values.length) { busy = false; send({ type: 'ready' }); }
+          const value = await input.next();
+          if (value !== null) busy = true;
+          return value;
+        }
         const value = await vscode.window.showWarningMessage(prompt.startsWith('Run') ? 'Run this command in the project?' : prompt.startsWith('Undo') ? 'Undo the last accepted edit?' : 'Confirm this action?', { modal: true }, 'Confirm');
         return abort.signal.aborted ? null : value === 'Confirm' ? 'y' : 'n';
       },
@@ -68,11 +75,12 @@ export async function activate(vscode, context) {
               return tool({ name: 'propose_edit', arguments: { diff: patch } }, { ...toolIO, prompt: async () => abort.signal.aborted ? null : 'y' }, options);
             }
             if (request.name === 'run_command') {
-              const output = new vscode.EventEmitter();
-              terminal?.dispose();
-              terminal = vscode.window.createTerminal({ name: 'Tervory commands', pty: { onDidWrite: output.event, open() {}, close() { abort.abort(); } } });
+              if (!terminal) {
+                terminalOutput = new vscode.EventEmitter();
+                terminal = vscode.window.createTerminal({ name: 'Tervory commands', pty: { onDidWrite: terminalOutput.event, open() {}, close() { session?.abort.abort(); terminal = undefined; terminalOutput?.dispose(); terminalOutput = undefined; } } });
+              }
               terminal.show(true);
-              const commandIO = { ...toolIO, write: value => { toolIO.write(value); output.fire(client.safe(redactSecrets(value)).replaceAll('\n', '\r\n')); } };
+              const commandIO = { ...toolIO, write: value => { toolIO.write(value); terminalOutput?.fire(client.safe(redactSecrets(value)).replace(/\r?\n/g, '\r\n')); } };
               return tool(request, commandIO, options);
             }
             return tool(request, toolIO, options);
@@ -147,11 +155,11 @@ export async function activate(vscode, context) {
 export function html(nonce) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';"><style nonce="${nonce}">
 body{background:#fff;color:#001840;font:14px system-ui;margin:16px}button{background:#001840;color:white;border:0;border-radius:4px;padding:9px;margin:4px;cursor:pointer}textarea{box-sizing:border-box;width:100%;min-height:90px;background:#F4F6FB;color:#001840;border:1px solid #B8BFD0;padding:10px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px monospace}fieldset{border:1px solid #B8BFD0;margin:8px 0}label{display:block;padding:6px}input{margin-right:8px}</style></head><body>
-<h2>Tervory</h2><button id="signIn">Sign in</button><button id="signOut">Sign out</button><pre id="output" role="log" aria-live="polite"></pre><div id="review"></div><label for="text">Ask about this project or describe a change</label><textarea id="text"></textarea><button id="ask">Ask</button><button id="code">Edit</button><button id="undo">Undo</button><button id="cancel">Stop</button>
+<h2>Tervory</h2><button id="signIn">Trigger sign-in</button><button id="signOut">Sign out</button><pre id="output" role="log" aria-live="polite"></pre><div id="review"></div><label for="text">Ask about this project or describe a change</label><textarea id="text"></textarea><button id="ask">Ask</button><button id="code">Edit</button><button id="undo">Undo</button><button id="cancel">Stop</button>
 <script nonce="${nonce}">
 const api=acquireVsCodeApi(),byId=id=>document.getElementById(id);let waiting=false;
 for(const type of ['signIn','signOut','ask','code','undo','cancel'])byId(type).onclick=()=>{if(waiting&&['ask','code','undo'].includes(type))return;if(['ask','code','undo'].includes(type))waiting=true;api.postMessage({type,text:byId('text').value});};
-window.addEventListener('message',({data})=>{if(data.type==='ready'){waiting=false;return;}if(data.type==='output'){byId('output').textContent+=data.text;return;}if(data.type!=='review')return;
+window.addEventListener('message',({data})=>{if(data.type==='ready'){waiting=false;return;}if(data.type==='output'){byId('output').textContent=(byId('output').textContent+data.text).slice(-500000);return;}if(data.type!=='review')return;
 const area=byId('review');area.replaceChildren();for(const file of data.files){const box=document.createElement('fieldset'),title=document.createElement('legend');title.textContent=file.name;box.append(title);const preview=document.createElement('button');preview.textContent='Open diff';preview.onclick=()=>api.postMessage({type:'preview',name:file.name});box.append(preview);const all=document.createElement('button');all.textContent='Accept file';const none=document.createElement('button');none.textContent='Reject file';box.append(all,none);all.onclick=()=>box.querySelectorAll('input').forEach(x=>x.checked=true);none.onclick=()=>box.querySelectorAll('input').forEach(x=>x.checked=false);
 for(const hunk of file.hunks){const label=document.createElement('label'),input=document.createElement('input'),code=document.createElement('pre');input.type='checkbox';input.dataset.index=hunk.index;input.checked=false;label.append(input,document.createTextNode('Accept hunk '+hunk.label));code.textContent=hunk.diff;box.append(label,code);}area.append(box);}
 const apply=document.createElement('button');apply.textContent='Apply selected';apply.onclick=()=>{api.postMessage({type:'accept',hunks:[...area.querySelectorAll('input:checked')].map(x=>Number(x.dataset.index))});area.replaceChildren();};const reject=document.createElement('button');reject.textContent='Reject all';reject.onclick=()=>{api.postMessage({type:'accept',hunks:[]});area.replaceChildren();};area.append(apply,reject);});

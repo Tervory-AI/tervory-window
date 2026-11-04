@@ -15,7 +15,7 @@ test('pinned Code-OSS source is MIT and the real product patch uses Open VSX wit
   assert.equal(product.extensionsGallery.serviceUrl, 'https://open-vsx.org/vscode/gallery');
   assert.equal(product.enableTelemetry, false); assert.equal(product.enableCrashReporter, false);
   assert.equal(product.defaultChatAgent, undefined);
-  assert.deepEqual(await readFile(resolve(source, 'resources/linux/code.png')), await readFile(resolve(root, 'workspace/public/brand/tervory-logo.png')));
+  assert.deepEqual(await readFile(resolve(source, 'resources/linux/code.png')), await readFile(resolve(root, 'vendor/brand/tervory-logo.png')));
   assert((await readFile(resolve(source, 'resources/win32/code.ico'))).length > 0);
   assert((await readFile(resolve(source, 'resources/darwin/code.icns'))).length > 0);
 });

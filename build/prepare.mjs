@@ -1,4 +1,6 @@
-import { readFile, writeFile, copyFile, mkdir, access } from 'node:fs/promises';
+import { vendorCli } from './vendor-cli.mjs';
+import { applyProduct } from './product.mjs';
+import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,10 +8,11 @@ import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createICO, createICNS } = require('png2icons');
-export const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-export const pin = JSON.parse(await readFile(resolve(root, 'window/upstream.json')));
+export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+export const pin = JSON.parse(await readFile(resolve(root, 'upstream.json')));
 export const source = resolve(root, '.tmp/code-oss-source');
 export async function prepare() {
+  await vendorCli(process.env.TERVORY_CLI_SOURCE);
   await mkdir(resolve(root, '.tmp'), { recursive: true });
   const archive = resolve(root, '.tmp/code-oss.tar.gz');
   try { await access(archive); }
@@ -25,16 +28,9 @@ export async function prepare() {
     execFileSync('tar', ['-xzf', archive, '--strip-components=1', '-C', source]);
   }
   if (JSON.parse(await readFile(resolve(source, 'package.json'))).version !== pin.release) throw Error('Wrong Code-OSS release.');
-  const product = JSON.parse(await readFile(resolve(source, 'product.json')));
-  const patch = JSON.parse(await readFile(resolve(root, 'window/patches/product.json')));
-  Object.assign(product, patch);
-  // All AI is Tervory/Tank. Do not leave an upstream Copilot activation path.
-  delete product.defaultChatAgent; delete product.aiConfig; delete product.tasConfig;
-  delete product.extensionTelemetry; delete product.telemetry;
-  product.extensionAllowedProposedApi = (product.extensionAllowedProposedApi ?? []).filter(id => !/copilot/i.test(id));
-  product.builtInExtensions = (product.builtInExtensions ?? []).filter(item => !/copilot/i.test(item.name));
+  const product = applyProduct(JSON.parse(await readFile(resolve(source, 'product.json'))));
   await writeFile(resolve(source, 'product.json'), JSON.stringify(product, null, 2) + '\n');
-  const logo = await readFile(resolve(root, 'workspace/public/brand/tervory-logo.png'));
+  const logo = await readFile(resolve(root, 'vendor/brand/tervory-logo.png'));
   // Format conversion of the exact supplied logo, never a replacement drawing.
   const ico = createICO(logo, 0, 0, true); const icns = createICNS(logo, 0, 0);
   if (!ico || !icns) throw Error('Brand icon conversion failed.');
@@ -45,7 +41,7 @@ export async function prepare() {
   let setup = await readFile(installer, 'utf8');
   setup = setup.replaceAll('AppPublisher=Microsoft Corporation', 'AppPublisher=Tervory').replaceAll('https://code.visualstudio.com/', 'https://tervory.com/');
   await writeFile(installer, setup);
-  await copyFile(resolve(source, 'LICENSE.txt'), resolve(root, 'window/CODE-OSS.LICENSE'));
+  await writeFile(resolve(root, 'CODE-OSS.LICENSE'), (await readFile(resolve(source, 'LICENSE.txt'), 'utf8')).replaceAll('\r\n', '\n'));
   return source;
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) console.log(await prepare());

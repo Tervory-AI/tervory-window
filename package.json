@@ -6,7 +6,9 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "prepare-source": "node build/prepare.mjs",
-    "build": "node build/build.mjs"
+    "build": "node build/build.mjs",
+    "lint": "node scripts/lint.mjs",
+    "vendor-cli": "node build/vendor-cli.mjs"
   },
   "dependencies": {
     "png2icons": "2.0.1"

@@ -5,3 +5,6 @@ extension/dist/
 extension/cli/
 
 media/
+
+.tmp/
+vendor/

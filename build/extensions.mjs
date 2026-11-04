@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 // than silently shipping an OS with a feature missing.
 export async function installExtensions(root, resources) {
   const folders = [];
-  const panel = resolve(root, 'window/extension');
+  const panel = resolve(root, 'extension');
   try { await access(panel); folders.push(panel); } catch { /* gate 3 not present yet */ }
-  const siblings = resolve(root, 'window/extensions');
+  const siblings = resolve(root, 'extensions');
   let entries = [];
   try { entries = await readdir(siblings, { withFileTypes: true }); } catch (error) { if (error.code !== 'ENOENT') throw error; }
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
@@ -22,9 +22,10 @@ export async function installExtensions(root, resources) {
     const id = `${pkg.publisher}.${pkg.name}`;
     if (!pkg.publisher || !pkg.name || ids.has(id)) throw Error('Invalid or duplicate built-in extension.');
     ids.add(id);
-    if (pkg.scripts?.build) {
+    if (pkg.scripts?.build || pkg.scripts?.model) {
       execFileSync(process.execPath, [process.env.npm_execpath, 'ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: folder, stdio: 'inherit' });
-      execFileSync(process.execPath, [process.env.npm_execpath, 'run', 'build'], { cwd: folder, stdio: 'inherit' });
+      if (pkg.scripts?.model) execFileSync(process.execPath, [process.env.npm_execpath, 'run', 'model'], { cwd: folder, stdio: 'inherit' });
+      if (pkg.scripts?.build) execFileSync(process.execPath, [process.env.npm_execpath, 'run', 'build'], { cwd: folder, stdio: 'inherit' });
     }
     const destination = resolve(resources, 'extensions', basename(folder));
     await rm(destination, { recursive: true, force: true });
@@ -33,9 +34,11 @@ export async function installExtensions(root, resources) {
     // Reuse the CLI's real modules and their pure JS transport dependency.
     // Native keyring is intentionally not loaded: the panel uses SecretStorage.
     if (folder === panel) {
-      await cp(resolve(root, 'cli/src'), resolve(destination, 'cli/src'), { recursive: true });
-      await cp(resolve(root, 'cli/package.json'), resolve(destination, 'cli/package.json'));
-      await cp(resolve(root, 'cli/node_modules/csv-parse'), resolve(destination, 'cli/node_modules/csv-parse'), { recursive: true });
+      await mkdir(resolve(destination, 'media'), { recursive: true });
+      await cp(resolve(root, 'vendor/brand/tervory-logo.png'), resolve(destination, 'media/tervory-logo.png'));
+      await cp(resolve(root, 'vendor/cli/src'), resolve(destination, 'cli/src'), { recursive: true });
+      await cp(resolve(root, 'vendor/cli/package.json'), resolve(destination, 'cli/package.json'));
+      await cp(resolve(root, 'vendor/cli/node_modules/csv-parse'), resolve(destination, 'cli/node_modules/csv-parse'), { recursive: true });
     }
     // Dependencies that extensions need at runtime belong in their locked build
     // output or node_modules, never downloaded by the desktop after installation.
@@ -45,6 +48,6 @@ export async function installExtensions(root, resources) {
   return [...ids];
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const root = resolve(import.meta.dirname, '../..');
+  const root = resolve(import.meta.dirname, '..');
   console.log(await installExtensions(root, resolve(process.argv[2])));
 }

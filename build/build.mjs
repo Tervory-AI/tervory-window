@@ -11,7 +11,7 @@ await prepare();
 const npm = (args, cwd = source) => execFileSync(process.execPath, [process.env.npm_execpath, ...args], { cwd, stdio: 'inherit', env: { ...process.env, VSCODE_QUALITY: 'stable', VSCODE_ARCH: arch, BUILD_SOURCEVERSION: pin.commit } });
 // Code-OSS postinstall builds its platform-native modules. Do not disable scripts.
 npm(['ci']);
-npm(['ci', '--ignore-scripts', '--no-audit', '--no-fund'], resolve(root, 'cli'));
+npm(['ci', '--ignore-scripts', '--no-audit', '--no-fund'], resolve(root, 'vendor/cli'));
 npm(['run', 'gulp', '--', `vscode-${platform}-${arch}-min`]);
 const built = resolve(source, `../VSCode-${platform}-${arch}`);
 // Copilot is excluded from the distribution. Tervory's extension is copied from
@@ -19,7 +19,7 @@ const built = resolve(source, `../VSCode-${platform}-${arch}`);
 const resources = platform === 'darwin' ? resolve(built, 'Tervory.app/Contents/Resources/app') : resolve(built, 'resources/app');
 await rm(resolve(resources, 'extensions/copilot'), { recursive: true, force: true });
 await installExtensions(root, resources);
-const out = resolve(root, 'window/dist'); await mkdir(out, { recursive: true });
+const out = resolve(root, 'dist'); await mkdir(out, { recursive: true });
 // Use the upstream platform installers. Signing stays off until configured.
 if (platform === 'win32') {
   npm(['run', 'gulp', '--', `vscode-win32-${arch}-user-setup`]);

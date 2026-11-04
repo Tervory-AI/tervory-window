@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 const packaged = resolve(import.meta.dirname, '../cli/src');
-const development = resolve(import.meta.dirname, '../../../cli/src');
+const development = resolve(import.meta.dirname, '../../vendor/cli/src');
 export const cli = name => import(pathToFileURL(resolve(existsSync(packaged) ? packaged : development, name)).href);
 
 // A prompt has one consumer. Disposal/cancellation resolves it as a refusal.
