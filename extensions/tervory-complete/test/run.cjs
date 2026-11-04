@@ -8,6 +8,7 @@ const { runTests } = require('@vscode/test-electron');
   const scratch = await fs.mkdtemp(path.join(tmp, 'complete-electron-'));
   await fs.mkdir(path.join(scratch, 'project/.tervory'), { recursive: true });
   await fs.writeFile(path.join(scratch, 'project/.tervory/rules'), 'Use clear names.');
+  await fs.writeFile(path.join(scratch, 'project/split.js'), 'const splitContext = true;\n');
   await fs.writeFile(path.join(scratch, 'project/near.js'), 'const nearby = 1;\n');
   await fs.writeFile(path.join(scratch, 'project/main.js'), 'function answer() {\n  \n}\n');
   const resultPath = path.join(scratch, 'passed');

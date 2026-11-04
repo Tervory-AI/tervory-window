@@ -28,16 +28,17 @@ exports.run = async () => {
   assert.equal(typeof api.configureTest, 'function');
   api.configureTest({ store: { get: async () => token }, transport: (url, opts) => fetch(base + new URL(url).pathname, opts) });
   const config = vscode.workspace.getConfiguration('tervory.complete');
-  const open = async name => {
+  const open = async (name, options = {}) => {
     const uri = vscode.Uri.joinPath(vscode.workspace.workspaceFolders[0].uri, name);
-    return vscode.window.showTextDocument(await vscode.workspace.openTextDocument(uri), { preview: false });
+    return vscode.window.showTextDocument(await vscode.workspace.openTextDocument(uri), { preview: false, ...options });
   };
   try {
     await config.update('enabled', true, vscode.ConfigurationTarget.Global);
     await vscode.workspace.getConfiguration('editor').update('inlineSuggest.enabled', false, vscode.ConfigurationTarget.Global);
     await config.update('paidMode', 'ask', vscode.ConfigurationTarget.Global);
     await open('near.js');
-    let editor = await open('main.js');
+    await open('split.js', { viewColumn: vscode.ViewColumn.Two });
+    let editor = await open('main.js', { viewColumn: vscode.ViewColumn.One });
     const pos = new vscode.Position(1, 2);
     editor.selection = new vscode.Selection(pos, pos);
     await wait(150);
@@ -51,6 +52,8 @@ exports.run = async () => {
     assert.equal(items[0].insertText, 'return 42;\n  // done');
     assert.equal(calls.at(-1).rules, 'Use clear names.');
     assert(calls.at(-1).tabs.some(tab => tab.text.includes('nearby')));
+    assert(calls.at(-1).tabs.some(tab => tab.text.includes('splitContext')), 'split editor tabs contribute context');
+    assert.equal(new Set(calls.at(-1).tabs.map(tab => tab.path)).size, calls.at(-1).tabs.length);
     assert(calls.at(-1).prefix.includes('function answer'));
     assert(calls.at(-1).suffix.includes('}'));
     // Exercise the actual registered provider and editor's Tab-accept command.

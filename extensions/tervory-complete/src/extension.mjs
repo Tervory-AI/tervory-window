@@ -27,16 +27,30 @@ export async function contextFor(document, position, selection) {
   const text = document.getText();
   const start = selection ? document.offsetAt(selection.start) : document.offsetAt(position);
   const end = selection ? document.offsetAt(selection.end) : start;
-  const group = vscode.window.tabGroups.all.find(g => g.tabs.some(t => t.input?.uri?.toString() === document.uri.toString()));
+  const groups = vscode.window.tabGroups.all;
+  const contains = group => group.tabs.some(tab => tab.input?.uri?.toString() === document.uri.toString());
+  const activeGroup = vscode.window.tabGroups.activeTabGroup;
+  const group = contains(activeGroup) ? activeGroup : groups.find(contains);
   const ordered = group?.tabs ?? [];
-  const current = ordered.findIndex(t => t.input?.uri?.toString() === document.uri.toString());
-  const neighbors = ordered.map((tab, i) => ({ tab, distance: Math.abs(i - current) }))
-    .filter(({ tab }) => tab.input?.uri && tab.input.uri.toString() !== document.uri.toString())
+  const current = ordered.findIndex(tab => tab.input?.uri?.toString() === document.uri.toString());
+  const sameGroup = ordered.map((tab, i) => ({ tab, distance: Math.abs(i - current) }))
     .sort((a, b) => a.distance - b.distance);
+  // Adjacent tabs come first, followed by the visible/nearest tabs in split editors.
+  const origin = Math.max(0, groups.indexOf(group));
+  const otherGroups = groups.map((candidate, index) => ({ candidate, distance: Math.abs(index - origin) }))
+    .filter(({ candidate }) => candidate !== group).sort((a, b) => a.distance - b.distance)
+    .flatMap(({ candidate }) => candidate.tabs.map((tab, index) => ({ tab,
+      distance: Math.abs(index - candidate.tabs.indexOf(candidate.activeTab)) }))
+      .sort((a, b) => a.distance - b.distance));
+  const neighbors = [...sameGroup, ...otherGroups]
+    .filter(({ tab }) => tab.input?.uri && tab.input.uri.toString() !== document.uri.toString());
   const tabs = [];
+  const seen = new Set();
   for (const { tab } of neighbors) {
     const doc = vscode.workspace.textDocuments.find(d => d.uri.toString() === tab.input.uri.toString());
-    if (!doc || !root || vscode.workspace.getWorkspaceFolder(doc.uri)?.uri.toString() !== root.uri.toString()) continue;
+    if (!doc || !root || seen.has(doc.uri.toString())
+        || vscode.workspace.getWorkspaceFolder(doc.uri)?.uri.toString() !== root.uri.toString()) continue;
+    seen.add(doc.uri.toString());
     tabs.push({ path: vscode.workspace.asRelativePath(doc.uri).slice(0, 500), text: doc.getText().slice(0, 4000) });
     if (tabs.length === 3) break;
   }

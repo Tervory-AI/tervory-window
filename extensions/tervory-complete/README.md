@@ -47,7 +47,8 @@ cannot enable Auto). Typing in Ask mode does not dispatch. `Tervory: Complete`
 asks once for a request. Auto debounces typing and closes superseded requests.
 Tab accepts the editor's ghost text; typing, cursor moves or Escape dismiss it.
 Only trusted file workspaces send code. The open file's nearest three open tabs
-from the same workspace contribute bounded context. Missing rules send an empty
+from the same workspace contribute bounded context. Adjacent tabs come first,
+then nearby tabs in split editors; duplicate documents are included once. Missing rules send an empty
 string; unreadable or oversized rules stop the request rather than silently
 omitting them. Rules are re-read for each completion and selected-code edit.
 
