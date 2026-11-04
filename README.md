@@ -31,7 +31,7 @@ Build on the target OS/CPU: Windows x64/arm64, macOS x64/arm64, Linux x64/arm64.
 Code-OSS requires its native build prerequisites (C++ toolchain, Python; GTK,
 X11, libsecret and Kerberos development libraries plus Clang/LLD on Linux).
 Linux native modules use the pinned upstream release sysroots and Electron C++
-libraries; ARM builds require Clang/LLD 21.1.8 (the exact Ubuntu package version
+libraries; ARM builds require Clang/LLD 23.1.6 (the exact Ubuntu package version
 and repository key checksum are pinned in `window.yml`). Installer dependency
 validation remains enabled. Build output is an
 unsigned portable archive in `dist`, with SHA256SUMS and build metadata.

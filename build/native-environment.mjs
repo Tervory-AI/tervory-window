@@ -26,16 +26,16 @@ export function linuxEnvironment(source) {
     });
     const client = resolve(env.VSCODE_CLIENT_SYSROOT_DIR, 'aarch64-linux-gnu');
     const remote = resolve(env.VSCODE_REMOTE_SYSROOT_DIR, 'aarch64-linux-gnu');
-    env.CC = `clang-21 --target=aarch64-linux-gnu --gcc-toolchain=${client} --sysroot=${client}/aarch64-linux-gnu/sysroot`;
-    env.CXX = `clang++-21 --target=aarch64-linux-gnu --gcc-toolchain=${client} --sysroot=${client}/aarch64-linux-gnu/sysroot`;
-    env.VSCODE_REMOTE_CC = `clang-21 --target=aarch64-linux-gnu --gcc-toolchain=${remote} --sysroot=${remote}/aarch64-linux-gnu/sysroot`;
-    env.VSCODE_REMOTE_CXX = `clang++-21 --target=aarch64-linux-gnu --gcc-toolchain=${remote} --sysroot=${remote}/aarch64-linux-gnu/sysroot`;
+    env.CC = `clang-23 --target=aarch64-linux-gnu --gcc-toolchain=${client} --sysroot=${client}/aarch64-linux-gnu/sysroot`;
+    env.CXX = `clang++-23 --target=aarch64-linux-gnu --gcc-toolchain=${client} --sysroot=${client}/aarch64-linux-gnu/sysroot`;
+    env.VSCODE_REMOTE_CC = `clang-23 --target=aarch64-linux-gnu --gcc-toolchain=${remote} --sysroot=${remote}/aarch64-linux-gnu/sysroot`;
+    env.VSCODE_REMOTE_CXX = `clang++-23 --target=aarch64-linux-gnu --gcc-toolchain=${remote} --sysroot=${remote}/aarch64-linux-gnu/sysroot`;
     // Match the upstream Clang profile: old glibc stat inline wrappers have
     // incompatible C++ exception declarations under Clang.
     env.CXXFLAGS += ` -nostdinc++ -D__NO_INLINE__ -DSPDLOG_USE_STD_FORMAT -I${source}/.build/libcxx_headers -isystem${source}/.build/libcxx_headers/include -isystem${source}/.build/libcxxabi_headers/include -fPIC -D_LIBCPP_ABI_NAMESPACE=Cr -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE`;
     env.LDFLAGS += ` -stdlib=libc++ -L${source}/.build/libcxx-objects -lc++abi`;
     env.VSCODE_REMOTE_CXXFLAGS += ' -D__NO_INLINE__';
-    env.LDFLAGS += ' -fuse-ld=lld-21'; env.VSCODE_REMOTE_LDFLAGS += ' -fuse-ld=lld-21';
+    env.LDFLAGS += ' -fuse-ld=lld-23'; env.VSCODE_REMOTE_LDFLAGS += ' -fuse-ld=lld-23';
   }
   return env;
 }

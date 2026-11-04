@@ -92,10 +92,10 @@ jobs:
           echo '8b2a587ffd672c4687e7581dad4b2f6c1bb2ad6b480cd9771ba2ff48e0b8c75d  .tmp/llvm-key.asc' | sha256sum -c -
           gpg --dearmor --output .tmp/llvm-key.gpg .tmp/llvm-key.asc
           sudo install -m 644 .tmp/llvm-key.gpg /usr/share/keyrings/tervory-llvm.gpg
-          echo 'deb [arch=arm64 signed-by=/usr/share/keyrings/tervory-llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main' | sudo tee /etc/apt/sources.list.d/tervory-llvm.list
+          echo 'deb [arch=arm64 signed-by=/usr/share/keyrings/tervory-llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' | sudo tee /etc/apt/sources.list.d/tervory-llvm.list
           sudo apt-get update
-          compiler_version='1:21.1.8~++20251221032922+2078da43e25a-1~exp1~20251221153059.70'
-          sudo apt-get install -y "clang-21=$compiler_version" "lld-21=$compiler_version"
+          compiler_version='1:23.1.6~++20261103094202+2875c6073a7e-1~exp1~20261103214217.95'
+          sudo apt-get install -y "clang-23=$compiler_version" "lld-23=$compiler_version"
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Build native installer
         run: |

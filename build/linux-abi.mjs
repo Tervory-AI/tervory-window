@@ -19,12 +19,17 @@ export async function checkLinuxAbi(built, builtinIds) {
   // baseline to every built-in we add, including its native dependencies.
   // Upstream optional brokers keep their own platform compatibility/fallbacks.
   const extensions=resolve(built,'resources/app/extensions');
+  const found=new Set();
   for(const entry of await readdir(extensions,{withFileTypes:true})){
     if(!entry.isDirectory())continue;
     const folder=resolve(extensions,entry.name);
-    const pkg=JSON.parse(await readFile(resolve(folder,'package.json'),'utf8'));
-    if(builtinIds.includes(`${pkg.publisher}.${pkg.name}`))await visit(folder);
+    let pkg;
+    try {pkg=JSON.parse(await readFile(resolve(folder,'package.json'),'utf8'));}
+    catch(error){if(error.code==='ENOENT')continue;throw error;}
+    const id=`${pkg.publisher}.${pkg.name}`;
+    if(builtinIds.includes(id)){found.add(id);await visit(folder);}
   }
+  for(const id of builtinIds)if(!found.has(id))throw Error(`Missing installed built-in: ${id}`);
   for (const file of files) {
     const output = execFileSync('readelf', ['--version-info', file], { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 });
     const versions = [...new Set(output.match(/GLIBC_[0-9.]+/g) ?? [])];
