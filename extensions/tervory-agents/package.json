@@ -37,6 +37,16 @@
       {
         "command": "tervory.agents.webhook",
         "title": "Set up PR review webhook"
+      },
+      {
+        "command": "tervory.agents.open",
+        "title": "Open pull request",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "tervory.agents.receipt",
+        "title": "Show receipt",
+        "icon": "$(list-unordered)"
       }
     ],
     "views": {
@@ -53,6 +63,16 @@
           "command": "tervory.agents.cancel",
           "when": "view == tervory.agents && viewItem == tervoryAgent.running",
           "group": "inline"
+        },
+        {
+          "command": "tervory.agents.open",
+          "when": "view == tervory.agents && viewItem == tervoryAgent.pr",
+          "group": "inline@1"
+        },
+        {
+          "command": "tervory.agents.receipt",
+          "when": "view == tervory.agents && viewItem =~ /^tervoryAgent\\.(running|finished|pr)$/",
+          "group": "inline@2"
         }
       ]
     }

@@ -20,17 +20,33 @@ function activate(context) {
   const provider = {
     onDidChangeTreeData: changes.event,
     getTreeItem: item => item,
-    async getChildren() {
+    async getChildren(group) {
+      if (Array.isArray(group?.children)) return group.children;
       try {
-        return (await call('jobs')).map(row => {
-          const item = new vscode.TreeItem(row.repo);
+        const rows = await call('jobs');
+        const render = row => {
+          const item = new vscode.TreeItem(row.kind === 'review' ? `${row.repo} #${row.pull_number}` : row.repo);
           item.description = row.status;
-          item.tooltip = row.job_id;
+          item.tooltip = row.kind === 'review' ? 'Pull request review' : 'Background task';
           item.jobId = row.job_id;
-          item.contextValue = ['queued', 'running'].includes(row.status) ? 'tervoryAgent.running' : 'tervoryAgent.finished';
+          const running = ['queued', 'running'].includes(row.status);
+          const url = row.result?.pr_url;
+          if (typeof url === 'string' && /^https:\/\/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+\/pull\/[1-9][0-9]*$/.test(url)) item.prUrl = url;
+          item.contextValue = running ? 'tervoryAgent.running' : item.prUrl ? 'tervoryAgent.pr' : 'tervoryAgent.finished';
+          if (item.prUrl) item.command = { command: 'tervory.agents.open', title: 'Open pull request', arguments: [item] };
+          return item;
+        };
+        return [['Running', true], ['Finished', false]].map(([label, active]) => {
+          const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.Expanded);
+          item.children = rows.filter(row => ['queued', 'running'].includes(row.status) === active).map(render);
+          item.description = String(item.children.length);
           return item;
         });
-      } catch { return []; }
+      } catch {
+        const item = new vscode.TreeItem('Connect Tervory or refresh the view');
+        item.command = { command: 'tervory.agents.connect', title: 'Connect Tervory' };
+        return [item];
+      }
     },
   };
   context.subscriptions.push(vscode.window.registerTreeDataProvider('tervory.agents', provider), changes);
@@ -86,6 +102,24 @@ function activate(context) {
     const setup = await vscode.window.showQuickPick(['Copy callback URL', 'Copy webhook secret'], { placeHolder: 'Add a GitHub webhook for pull requests (application/json)' });
     if (setup === 'Copy callback URL') await vscode.env.clipboard.writeText(hook.url);
     if (setup === 'Copy webhook secret') await vscode.env.clipboard.writeText(hook.secret);
+  });
+  register('tervory.agents.open', async item => {
+    if (typeof item?.prUrl === 'string' && /^https:\/\/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+\/pull\/[1-9][0-9]*$/.test(item.prUrl)) {
+      await vscode.env.openExternal(vscode.Uri.parse(item.prUrl));
+    }
+  });
+  register('tervory.agents.receipt', async item => {
+    if (!item?.jobId) return;
+    const receipt = await call(`jobs/${encodeURIComponent(item.jobId)}/receipt`);
+    const money = value => typeof value === 'number' && Number.isFinite(value) ? '$' + value.toFixed(6) : 'Pending';
+    const lines = ['Receipt', '', `Recorded cost: ${money(receipt.totals?.cost_usd)}`,
+      `Baseline: ${money(receipt.totals?.baseline_cost_usd)}`, `Saved: ${money(receipt.totals?.saved_usd)}`, ''];
+    if (receipt.status === 'pending') lines.push('Some usage is still being recorded.', '');
+    for (const [index, row] of (receipt.rows || []).entries()) {
+      lines.push(`Step ${index + 1}: ${money(row.cost_usd)}; input ${row.tokens_in ?? 'Pending'}, output ${row.tokens_out ?? 'Pending'} tokens`);
+    }
+    const document = await vscode.workspace.openTextDocument({ language: 'plaintext', content: lines.join('\n') });
+    await vscode.window.showTextDocument(document, { preview: true });
   });
   register('tervory.agents.cancel', async item => {
     if (item?.jobId) await call(`jobs/${encodeURIComponent(item.jobId)}/cancel`, {});
