@@ -1,0 +1,46 @@
+name: window-complete
+on:
+  pull_request:
+    paths: ['extensions/tervory-complete/**']
+  push:
+    branches: ['codex/window-complete']
+    paths: ['extensions/tervory-complete/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  extension:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TMPDIR: ${{ github.workspace }}/.tmp
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Scratch directory
+        run: mkdir -p "$TMPDIR"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+      - name: Existing Tank CLI client
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: Tervory-AI/tervory-tank
+          ref: 412c48c4ca3918a21cfbdee3c522d7cb67e88b0c
+          path: .tmp/tank-client
+          persist-credentials: false
+      - name: Install CLI and extension dependencies
+        run: |
+          npm ci --prefix .tmp/tank-client/cli --ignore-scripts
+          npm ci --prefix extensions/tervory-complete --ignore-scripts
+      - name: Stock VSCodium
+        env:
+          CODIUM_VERSION: '1.143.17232'
+        run: |
+          curl --fail --location --retry 3 "https://github.com/VSCodium/vscodium/releases/download/$CODIUM_VERSION/VSCodium-linux-x64-$CODIUM_VERSION.tar.gz" -o "$TMPDIR/codium.tar.gz"
+          echo "ca1895aa040bd91a09c709d79eac7862d8c1aa0237fdc25b503deeb8bcd87efd  $TMPDIR/codium.tar.gz" | sha256sum --check
+          mkdir -p "$TMPDIR/codium"
+          tar -xzf "$TMPDIR/codium.tar.gz" -C "$TMPDIR/codium"
+      - name: Fake Tank editor tests
+        env:
+          VSCODE_EXECUTABLE_PATH: ${{ github.workspace }}/.tmp/codium/codium
+        run: xvfb-run -a npm test --prefix extensions/tervory-complete
