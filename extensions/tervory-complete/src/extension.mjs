@@ -4,7 +4,11 @@ import { Tank, session, safe, receiptLines } from '@tervory/cli-client';
 
 const config = () => vscode.workspace.getConfiguration('tervory.complete');
 const PATH = '/v1/command/complete';
-const decoder = new TextDecoder();
+const panelApi = async () => {
+  const extension = vscode.extensions.getExtension('tervory.tervory-panel');
+  if (!extension) throw new Error('Tervory panel is unavailable');
+  return extension.activate();
+};
 const delay = (ms, signal) => new Promise((resolve, reject) => {
   const abort = () => { clearTimeout(timer); reject(new Error('Cancelled')); };
   const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, ms);
@@ -14,16 +18,7 @@ const delay = (ms, signal) => new Promise((resolve, reject) => {
 
 export async function contextFor(document, position, selection) {
   const root = vscode.workspace.getWorkspaceFolder(document.uri);
-  let rules = '';
-  if (root) {
-    try {
-      const bytes = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(root.uri, '.tervory', 'rules'));
-      rules = decoder.decode(bytes);
-      if (rules.length > 12000) throw new Error('Project rules exceed the limit');
-    } catch (error) {
-      if (error.code !== 'FileNotFound') throw error;
-    }
-  }
+  const rules = root ? await (await panelApi()).projectRules(root.uri) : '';
   const text = document.getText();
   const start = selection ? document.offsetAt(selection.start) : document.offsetAt(position);
   const end = selection ? document.offsetAt(selection.end) : start;
@@ -60,11 +55,7 @@ export async function contextFor(document, position, selection) {
 
 export async function activate(context) {
   const output = vscode.window.createOutputChannel('Tervory');
-  const panel = async () => {
-    const extension = vscode.extensions.getExtension('tervory.tervory-panel');
-    if (!extension) throw new Error('Tervory panel is unavailable');
-    return extension.activate();
-  };
+  const panel = panelApi;
   const store = { get: async () => (await panel()).credentials.get(),
     set: async value => (await panel()).credentials.set(value), remove: async () => (await panel()).credentials.remove() };
   let transport = fetch;

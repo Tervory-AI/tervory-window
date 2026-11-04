@@ -30,7 +30,7 @@ export async function installExtensions(root, resources) {
     const destination = resolve(resources, 'extensions', basename(folder));
     await rm(destination, { recursive: true, force: true });
     await mkdir(destination, { recursive: true });
-    await cp(folder, destination, { recursive: true, filter: path => !['.git', 'node_modules', 'test', 'tests'].includes(basename(path)) });
+    await cp(folder, destination, { recursive: true, verbatimSymlinks: true, filter: path => !['.git', 'node_modules', 'test', 'tests'].includes(basename(path)) });
     // Reuse the CLI's real modules and their pure JS transport dependency.
     // Native keyring is intentionally not loaded: the panel uses SecretStorage.
     if (folder === panel) {
@@ -41,13 +41,13 @@ export async function installExtensions(root, resources) {
       }
       await cp(resolve(root, 'node_modules/@fontsource/inter/LICENSE'), resolve(destination, 'media/Inter.LICENSE'));
       await cp(resolve(root, 'vendor/brand/tervory-logo.png'), resolve(destination, 'media/tervory-logo.png'));
-      await cp(resolve(root, 'vendor/cli/src'), resolve(destination, 'cli/src'), { recursive: true });
+      await cp(resolve(root, 'vendor/cli/src'), resolve(destination, 'cli/src'), { recursive: true, verbatimSymlinks: true });
       await cp(resolve(root, 'vendor/cli/package.json'), resolve(destination, 'cli/package.json'));
-      await cp(resolve(root, 'vendor/cli/node_modules/csv-parse'), resolve(destination, 'cli/node_modules/csv-parse'), { recursive: true });
+      await cp(resolve(root, 'vendor/cli/node_modules/csv-parse'), resolve(destination, 'cli/node_modules/csv-parse'), { recursive: true, verbatimSymlinks: true });
     }
     // Dependencies that extensions need at runtime belong in their locked build
     // output or node_modules, never downloaded by the desktop after installation.
-    try { await cp(resolve(folder, 'node_modules'), resolve(destination, 'node_modules'), { recursive: true }); }
+    try { await cp(resolve(folder, 'node_modules'), resolve(destination, 'node_modules'), { recursive: true, verbatimSymlinks: true }); }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
   }
   return [...ids];

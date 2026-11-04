@@ -46,7 +46,7 @@ await fs.writeFile(path.join(project,'landscape.ts'),'// Paint trees, mountains 
 const profile=await fs.mkdtemp(path.join(process.env.TMPDIR??tmpdir(),'vi-'));
 try {
 const result=path.join(profile,'index-passed');
-await runTests({extensionTestsEnv:{TERVORY_INDEX_TEST_RESULT:result},vscodeExecutablePath:executable,extensionDevelopmentPath:root,extensionTestsPath:path.join(root,'dist/test/electron.test.js'),
+await runTests({extensionTestsEnv:{TERVORY_INDEX_TEST_RESULT:result},vscodeExecutablePath:executable,extensionDevelopmentPath:process.env.TERVORY_INDEX_EXTENSION_PATH??root,extensionTestsPath:path.join(root,'dist/test/electron.test.js'),
   launchArgs:[project,'--no-sandbox','--disable-gpu','--disable-workspace-trust','--skip-welcome','--skip-release-notes','--disable-telemetry','--user-data-dir',profile,'--extensions-dir',path.join(directory,'extensions')]});
 if(await fs.readFile(result,'utf8')!=='passed')throw new Error('Index editor suite did not finish');
 } finally {await fs.rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:200});}

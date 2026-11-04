@@ -1,7 +1,7 @@
 // External boundaries only: real panel, real CLI and CodeFolder execute below.
 import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
-import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -56,7 +56,7 @@ export async function scenario(name) {
         return Response.json({answer:'',receipt,requests:[{name:'run_command',arguments:{command:'echo panel-command'}}]});
       }
       if(!body.continuation)round=0;
-      if(name==='ask'||name==='index-context'){
+      if(name==='ask'||name==='index-context'||name==='rules'){
         const requests=round++===0?[{name:'list_files',arguments:{}}]:round===2?[{name:'read_file',arguments:{path:'file.txt'}}]:[];
         if(round===2)assert(body.tool_results.some(item=>item.name==='list_files'&&item.output.includes('file.txt')));
         if(!requests.length)assert(body.tool_results.some(item=>item.output.includes('old')));
@@ -70,7 +70,14 @@ export async function scenario(name) {
   try {
     const result=await activate(vscode,context);
     api.resolveWebviewView({webview:{options:{},postMessage:value=>{outputs.push(value);if(value.type==='approval')queueMicrotask(()=>message({type:'approve',id:value.id,approved:prompt==='Confirm'}));},onDidReceiveMessage:fn=>{message=fn;return{dispose(){}};}},onDidDispose:fn=>{disposed=fn;return{dispose(){}};}});
-    if(name==='search'){await message({type:'search',query:'old'});const result=outputs.find(item=>item.type==='search');assert.deepEqual(result.matches,[{path:'file.txt',startLine:1,endLine:1,text:'old'}]);await message({type:'searchOpen',index:0});assert(previews.some(args=>args[0].fsPath?.endsWith('file.txt')));assert.equal(calls.length,0);}
+    if(name==='rules'){
+      await mkdir(join(root,'.tervory'));await writeFile(join(root,'.tervory/rules'),'Use clear names.');
+      const running=message({type:'code',text:'Explain this project'});await until(()=>outputs.some(item=>item.type==='ready'));
+      await writeFile(join(root,'.tervory/rules'),'Updated project rule.');await message({type:'code',text:'Explain again'});await until(()=>outputs.filter(item=>item.type==='ready').length>=2);
+      const turns=calls.filter(item=>item.path.endsWith('/code-turn')&&!item.body.continuation);assert.equal(turns.length,2);assert(turns[0].body.text.includes('Use clear names.'));assert(turns[1].body.text.includes('Updated project rule.'));assert(turns.every(turn=>turn.body.text.includes('Repository project notes DATA')));
+      await message({type:'cancel'});await running;
+    }
+    else if(name==='search'){await message({type:'search',query:'old'});const result=outputs.find(item=>item.type==='search');assert.deepEqual(result.matches,[{path:'file.txt',startLine:1,endLine:1,text:'old'}]);await message({type:'searchOpen',index:0});assert(previews.some(args=>args[0].fsPath?.endsWith('file.txt')));assert.equal(calls.length,0);}
     else if(name==='index-context'){const running=message({type:'code',text:'Explain this project'});await until(()=>outputs.some(x=>x.type==='ready'));const turn=calls.find(x=>x.path.endsWith('/code-turn'));assert(turn.body.text.includes('Project context DATA'));assert(turn.body.text.includes('old'));assert(!turn.body.text.includes('cached text'));assert(!turn.body.text.includes('.git/config'));await message({type:'cancel'});await running;}
     else if(name==='ask') {const running=message({type:'code',text:'Explain this project'});await until(()=>outputs.some(x=>x.type==='ready'));assert(outputs.some(x=>x.text?.includes('Project answer.')));assert(outputs.some(x=>x.text?.includes('0.01')));await message({type:'cancel'});await running;}
     else if(name==='plugins'){await message({type:'plugins'});assert(outputs.some(x=>x.type==='plugins'&&JSON.stringify(x.items).includes('list_issues')&&JSON.stringify(x.items).includes('Installed · 1.0.0')));}

@@ -56,7 +56,8 @@ if (platform === 'win32') {
   }
 }
 const file = `tervory-window-${platform}-${arch}.tar.gz`;
-execFileSync('tar', ['-czf', '../../dist/' + file, '.'], { cwd: built, stdio: 'inherit' });
+const archiveTool = platform === 'win32' ? resolve(process.env.SystemRoot, 'System32/tar.exe') : 'tar';
+execFileSync(archiveTool, ['-czf', file, '-C', built, '.'], { cwd: out, stdio: 'inherit' });
 let sums = '';
 for (const name of await readdir(out)) {
   if (!/\.(deb|exe|dmg|gz)$/.test(name)) continue;
