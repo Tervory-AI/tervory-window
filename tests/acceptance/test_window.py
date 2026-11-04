@@ -7,7 +7,7 @@ import subprocess
 import unittest
 ROOT = Path(__file__).resolve().parents[2]
 CASES = dict(zip(range(1, 14), ['ask', 'signin-us', 'signin-za', 'undo', 'partial', 'reject', 'trust', 'command', 'command-deny', 'plugins', 'offline', 'stale', 'cancel-review']))
-CASES.update({14:'editor:autocomplete',15:'editor:inline edit',16:'editor:project rules',17:'agents:task uses only',18:'agents:GitHub credential is entered',19:'agents:one inline cancel action',20:'agents:an invalid Tervory credential'})
+CASES.update({14:'editor:autocomplete',15:'editor:inline edit',16:'editor:project rules',17:'agents:task uses only',18:'agents:GitHub credential is entered',19:'agents:one inline cancel action',20:'agents:an invalid Tervory credential',21:'agents:PR review sends a named credential',22:'agents:disabling a webhook',23:'agents:webhook secret is copied only'})
 
 @lru_cache(maxsize=1)
 def editor_proof():
@@ -25,7 +25,9 @@ def case(scenario):
             self.assertIn('PASS ' + scenario.split(':', 1)[1] + ':', editor_proof())
             return
         if scenario.startswith('agents:'):
-            subprocess.run(['node', '--test', '--test-name-pattern=' + scenario.split(':', 1)[1], 'extensions/tervory-agents/test/extension.test.cjs'], cwd=ROOT, check=True, timeout=60, capture_output=True, text=True)
+            result = subprocess.run(['node', '--test', '--test-name-pattern=' + scenario.split(':', 1)[1], 'extensions/tervory-agents/test/extension.test.cjs'], cwd=ROOT, check=True, timeout=60, capture_output=True, text=True)
+            self.assertIn('# pass 1', result.stdout)
+            self.assertIn('# fail 0', result.stdout)
             return
         subprocess.run(['node', 'test/panel.mjs', scenario], cwd=ROOT,
                        env=dict(os.environ, TMPDIR=str(ROOT / '.tmp')),

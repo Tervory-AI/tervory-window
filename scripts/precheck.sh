@@ -7,5 +7,6 @@ npm run lint
 npm test
 node --test extensions/tervory-agents/test/*.test.cjs
 TERVORY_CLI_ROOT="$PWD/vendor/cli" npm --prefix extensions/tervory-complete run build
+node build/test-editor.mjs
 python3 -m unittest discover -s tests/acceptance -p 'test_window.py'
 bash scripts/scan-secrets.sh
