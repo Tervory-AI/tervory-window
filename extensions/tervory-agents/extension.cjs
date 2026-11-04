@@ -13,7 +13,7 @@ function activate(context) {
       body: body ? JSON.stringify(body) : undefined,
       signal: AbortSignal.timeout(30000), redirect: 'error',
     });
-    if (!response.ok) throw new Error(`Request stopped (${response.status}).`);
+    if (!response.ok) throw new Error('The request could not be completed. Check your sign-in and repository access.');
     return response.status === 204 ? null : response.json();
   }
   const changes = new vscode.EventEmitter();
@@ -62,6 +62,30 @@ function activate(context) {
     const prompt = await vscode.window.showInputBox({ prompt: 'Task' });
     if (!prompt) return;
     await call('jobs', { repo, credential_name, prompt, request_id: randomUUID() });
+  });
+  register('tervory.agents.review', async () => {
+    const credential_name = await vscode.window.showQuickPick(await call('vault/github'), { placeHolder: 'GitHub credential name' });
+    if (!credential_name) return;
+    const repo = await vscode.window.showInputBox({ prompt: 'GitHub owner/repository' });
+    if (!repo) return;
+    const number = await vscode.window.showInputBox({ prompt: 'Pull request number' });
+    if (!number) return;
+    if (!/^[1-9][0-9]*$/.test(number) || !Number.isSafeInteger(Number(number))) throw new Error('Enter a pull request number.');
+    await call('reviews', { repo, credential_name, pull_number: Number(number), request_id: randomUUID() });
+  });
+  register('tervory.agents.webhook', async () => {
+    const credential_name = await vscode.window.showQuickPick(await call('vault/github'), { placeHolder: 'GitHub credential name' });
+    if (!credential_name) return;
+    const repo = await vscode.window.showInputBox({ prompt: 'GitHub owner/repository' });
+    if (!repo) return;
+    const action = await vscode.window.showQuickPick(['Enable', 'Disable'], { placeHolder: 'PR review webhook' });
+    if (!action) return;
+    const hook = await call('webhooks', { repo, credential_name, enabled: action === 'Enable' });
+    if (!hook.enabled) return;
+    // Copying is explicit; the secret never enters chat or a text document.
+    const setup = await vscode.window.showQuickPick(['Copy callback URL', 'Copy webhook secret'], { placeHolder: 'Add a GitHub webhook for pull requests (application/json)' });
+    if (setup === 'Copy callback URL') await vscode.env.clipboard.writeText(hook.url);
+    if (setup === 'Copy webhook secret') await vscode.env.clipboard.writeText(hook.secret);
   });
   register('tervory.agents.cancel', async item => {
     if (item?.jobId) await call(`jobs/${encodeURIComponent(item.jobId)}/cancel`, {});

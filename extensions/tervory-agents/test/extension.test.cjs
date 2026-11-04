@@ -8,6 +8,8 @@ function fixture(t, { invalidToken = false } = {}) {
   const commands = new Map();
   const requests = [];
   const inputs = [];
+  const picks = [];
+  const clipboard = [];
   const inputOptions = [];
   const subscriptions = [];
   const errors = [];
@@ -19,9 +21,10 @@ function fixture(t, { invalidToken = false } = {}) {
     window: {
       registerTreeDataProvider(id, value) { provider = value; return { dispose() {} }; },
       async showInputBox(options) { inputOptions.push(options); return inputs.shift(); },
-      async showQuickPick(options) { return options[0]; },
+      async showQuickPick(options) { return picks.length ? picks.shift() : options[0]; },
       showErrorMessage(message) { errors.push(message); },
     },
+    env: { clipboard: { async writeText(value) { clipboard.push(value); } } },
     commands: { registerCommand(id, callback) { commands.set(id, callback); return { dispose() {} }; } },
   };
   const activeId = '12345678-1234-1234-1234-123456789abc';
@@ -31,6 +34,7 @@ function fixture(t, { invalidToken = false } = {}) {
     requests.push(request);
     let data = null;
     if (request.path.endsWith('/vault/github') && options.method === 'GET') data = ['github'];
+    if (request.path.endsWith('/webhooks')) data = { enabled: request.body.enabled, url: 'https://app.tervory.com/v1/window-agents/webhooks/fixture', secret: 'fixture-webhook-secret' };
     if (request.path.endsWith('/jobs') && options.method === 'GET') data = [
       { job_id: activeId, repo: 'alice/project', status: 'running' },
       { job_id: 'finished', repo: 'alice/other', status: 'done' },
@@ -46,7 +50,7 @@ function fixture(t, { invalidToken = false } = {}) {
   } finally { Module._load = load; }
   const close = () => { for (const item of subscriptions) item.dispose(); delete require.cache[file]; };
   t.after(close);
-  return { commands, requests, inputs, inputOptions, provider, errors, activeId, close };
+  return { commands, requests, inputs, picks, clipboard, inputOptions, provider, errors, activeId, close };
 }
 
 test('task uses only the credential name and continues after window disposal', async t => {
@@ -87,4 +91,35 @@ test('an invalid Tervory credential cannot select an arbitrary server', async t 
   await f.commands.get('tervory.agents.start')();
   assert.equal(f.requests.length, 0);
   assert.deepEqual(f.errors, ['Connect Tervory first.']);
+});
+
+
+test('PR review sends a named credential and a validated PR number', async t => {
+  const f = fixture(t);
+  f.inputs.push('alice/project', '8');
+  await f.commands.get('tervory.agents.review')();
+  const request = f.requests.at(-1);
+  assert.equal(request.path, '/v1/window-agents/reviews');
+  assert.equal(request.body.credential_name, 'github');
+  assert.equal(request.body.pull_number, 8);
+  assert.equal(request.body.model, undefined);
+  assert.equal(request.body.value, undefined);
+});
+
+test('disabling a webhook never copies its secret', async t => {
+  const f = fixture(t);
+  f.inputs.push('alice/project');
+  f.picks.push('github', 'Disable');
+  await f.commands.get('tervory.agents.webhook')();
+  assert.equal(f.requests.at(-1).body.enabled, false);
+  assert.deepEqual(f.clipboard, []);
+});
+
+test('webhook secret is copied only after the explicit copy choice', async t => {
+  const f = fixture(t);
+  f.inputs.push('alice/project');
+  f.picks.push('github', 'Enable', 'Copy webhook secret');
+  await f.commands.get('tervory.agents.webhook')();
+  assert.equal(f.requests.at(-1).body.enabled, true);
+  assert.deepEqual(f.clipboard, ['fixture-webhook-secret']);
 });

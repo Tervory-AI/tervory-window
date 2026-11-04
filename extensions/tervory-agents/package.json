@@ -29,6 +29,14 @@
       {
         "command": "tervory.agents.vault",
         "title": "Save GitHub credential"
+      },
+      {
+        "command": "tervory.agents.review",
+        "title": "Review pull request"
+      },
+      {
+        "command": "tervory.agents.webhook",
+        "title": "Set up PR review webhook"
       }
     ],
     "views": {
