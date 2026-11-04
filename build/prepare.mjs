@@ -25,7 +25,7 @@ export async function prepare() {
   try { await access(resolve(source, 'package.json')); }
   catch {
     await mkdir(source, { recursive: true });
-    execFileSync('tar', ['-xzf', archive, '--strip-components=1', '-C', source]);
+    execFileSync('tar', ['-xzf', '../code-oss.tar.gz', '--strip-components=1'], { cwd: source });
   }
   if (JSON.parse(await readFile(resolve(source, 'package.json'))).version !== pin.release) throw Error('Wrong Code-OSS release.');
   const product = applyProduct(JSON.parse(await readFile(resolve(source, 'product.json'))));

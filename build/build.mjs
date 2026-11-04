@@ -32,7 +32,7 @@ if (platform === 'win32') {
   execFileSync('hdiutil', ['create', '-volname', 'Tervory', '-srcfolder', built, '-ov', '-format', 'UDZO', resolve(out, `tervory-window-darwin-${arch}.dmg`)], { stdio: 'inherit' });
 }
 const file = `tervory-window-${platform}-${arch}.tar.gz`;
-execFileSync('tar', ['-czf', resolve(out, file), '-C', built, '.'], { stdio: 'inherit' });
+execFileSync('tar', ['-czf', '../../dist/' + file, '.'], { cwd: built, stdio: 'inherit' });
 let sums = '';
 for (const name of await readdir(out)) {
   if (!/\.(deb|exe|dmg|gz)$/.test(name)) continue;

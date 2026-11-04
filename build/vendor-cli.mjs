@@ -13,7 +13,7 @@ export async function vendorCli(local){
  if(git(['rev-parse','FETCH_HEAD']).trim()!==pin.commit)throw Error('CLI commit mismatch.');
  const output=resolve(root,'vendor');await rm(output,{recursive:true,force:true});await mkdir(output,{recursive:true});
  const archive=execFileSync('git',['-C',cache,'archive',pin.commit,'cli/src','cli/package.json','cli/package-lock.json','workspace/public/brand/tervory-logo.png'],{maxBuffer:32*1024*1024});
- execFileSync('tar',['-x','-C',output],{input:archive});
+ execFileSync('tar',['-xf','-'],{input:archive,cwd:output});
  await mkdir(resolve(output,'brand'),{recursive:true});
  const {rename}=await import('node:fs/promises');
  await rename(resolve(output,'workspace/public/brand/tervory-logo.png'),resolve(output,'brand/tervory-logo.png'));
