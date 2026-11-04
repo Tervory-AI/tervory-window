@@ -4,7 +4,9 @@ const ORIGINS = { 'us-east': 'https://app.tervory.com', za: 'https://za.tervory.
 
 function activate(context) {
   async function call(path, body, method) {
-    const token = await context.secrets.get('tervory.personal');
+    const panel = vscode.extensions.getExtension('tervory.tervory-panel');
+    if (!panel) throw new Error('Tervory panel is unavailable');
+    const token = await (await panel.activate()).getSessionToken();
     const match = /^tv1\.(us-east|za)\.[0-9a-f]{32}\.[A-Za-z0-9_-]{43}$/.exec(token || '');
     if (!match) throw new Error('Connect Tervory first.');
     const response = await fetch(ORIGINS[match[1]] + (match[1] === 'us-east' ? '/v1/command/window-agents/' : '/v1/window-agents/') + path, {
@@ -56,13 +58,7 @@ function activate(context) {
     try { await action(...args); changes.fire(); }
     catch (error) { vscode.window.showErrorMessage(error.message); }
   }));
-  register('tervory.agents.connect', async () => {
-    const value = await vscode.window.showInputBox({ prompt: 'Tervory personal token', password: true, ignoreFocusOut: true });
-    if (value) {
-      if (!/^tv1\.(us-east|za)\.[0-9a-f]{32}\.[A-Za-z0-9_-]{43}$/.test(value)) throw new Error('Personal token refused.');
-      await context.secrets.store('tervory.personal', value);
-    }
-  });
+  register('tervory.agents.connect', () => vscode.commands.executeCommand('tervory.signIn'));
   register('tervory.agents.vault', async () => {
     const name = await vscode.window.showInputBox({ prompt: 'Credential name' });
     if (!name) return;

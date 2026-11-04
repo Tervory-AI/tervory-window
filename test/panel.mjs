@@ -40,6 +40,7 @@ export async function scenario(name) {
     if(parsed.pathname.endsWith('/cards/plugin-card')){assert.equal(body.action,'confirm');return Response.json({card_id:'plugin-card',status:'executing'});}
     if(parsed.pathname.endsWith('/placeholder-thread'))return Response.json({cards:[{card_id:'plugin-card',status:'done',result:{items:[{name:'github',version:'1.0.0',installed:true}]}}],steps:[{step_id:'plugin-card',status:'done',receipt_status:'recorded'}],receipts:[]});
     if(parsed.pathname.endsWith('/device/code'))return Response.json({device_code:'placeholder-device',user_code:'BCDF-GHJK',verification_uri:'https://app.tervory.com/cli/device',expires_in:20,interval:1});
+    if(parsed.pathname.endsWith('/device/revoke')){assert.equal(body.refresh_token, `tvr1.${region}.${'1'.repeat(32)}.${('placeholder'+'r'.repeat(43)).slice(0,43)}`);return Response.json({revoked:true});}
     if(parsed.pathname.endsWith('/device/token'))return Response.json({access_token:token(region),refresh_token:`tvr1.${region}.${'1'.repeat(32)}.${('placeholder'+'r'.repeat(43)).slice(0,43)}`,expires_at:new Date(Date.now()+3600000).toISOString(),refresh_expires_at:new Date(Date.now()+86400000).toISOString()});
     assert.equal(init.headers.Authorization,`Bearer ${token(region)}`);
     if(parsed.pathname.endsWith('/threads'))return Response.json({thread_id:'placeholder-thread'});
@@ -87,6 +88,13 @@ export async function scenario(name) {
         globalThis.fetch=async(url,init)=>{const response=await transport(url,init);if(String(url).endsWith('/device/code'))return Response.json({...await response.json(),identity_provider:'zitadel',user_code:'1234-5678',verification_uri:'https://auth-za.tervory.com/device',verification_uri_complete:'https://auth-za.tervory.com/device?user_code=1234-5678'});return response;};
       }
       await result.signIn();assert(outputs.some(x=>x.type==='deviceCode'&&x.code===(region==='za'?'1234-5678':'BCDF-GHJK')));assert(!outputs.some(x=>x.text?.includes('auth-za')));assert(JSON.parse(secrets.get('tervory.session')).region===region);
+      assert.equal(await result.getSessionToken(), token(region));
+      assert.equal(await result.credentials.get(), secrets.get('tervory.session'));
+      await result.signOut();
+      assert.equal(secrets.size, 0);
+      assert(calls.some(call=>call.path.endsWith('/device/revoke')));
+      assert(outputs.some(x=>x.type==='auth'&&x.signedIn===false));
+      await assert.rejects(result.getSessionToken(), /Login required/);
     } else if(name==='trust') {vscode.workspace.isTrusted=false;await message({type:'code',text:'change files'});assert.equal(calls.length,0);assert(outputs.some(x=>x.text?.includes('Trust')));}
     else {
       const running=message({type:'code',text:'change both files'});

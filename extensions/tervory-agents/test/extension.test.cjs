@@ -6,6 +6,7 @@ const manifest = require('../package.json');
 
 function fixture(t, { invalidToken = false, region = 'us-east', prUrl = 'https://github.com/alice/other/pull/8' } = {}) {
   const commands = new Map();
+  const executed = [];
   const requests = [];
   const inputs = [];
   const picks = [];
@@ -18,6 +19,7 @@ function fixture(t, { invalidToken = false, region = 'us-east', prUrl = 'https:/
   let provider;
   const secrets = new Map([['tervory.personal', invalidToken ? 'refused' : ['tv1', region, 'a'.repeat(32), 'b'.repeat(43)].join('.')]]);
   const vscode = {
+    extensions: { getExtension(id) { assert.equal(id, 'tervory.tervory-panel'); return { activate: async () => ({ getSessionToken: async () => secrets.get('tervory.personal') }) }; } },
     EventEmitter: class { event() {} fire() {} dispose() {} },
     TreeItem: class { constructor(label, state) { this.label = label; this.collapsibleState = state; } },
     TreeItemCollapsibleState: { Expanded: 2 },
@@ -31,7 +33,7 @@ function fixture(t, { invalidToken = false, region = 'us-east', prUrl = 'https:/
       showErrorMessage(message) { errors.push(message); },
     },
     env: { async openExternal(uri) { opened.push(uri); }, clipboard: { async writeText(value) { clipboard.push(value); } } },
-    commands: { registerCommand(id, callback) { commands.set(id, callback); return { dispose() {} }; } },
+    commands: { async executeCommand(id) { executed.push(id); }, registerCommand(id, callback) { commands.set(id, callback); return { dispose() {} }; } },
   };
   const activeId = '12345678-1234-1234-1234-123456789abc';
   t.mock.method(global, 'fetch', async (url, options) => {
@@ -57,7 +59,7 @@ function fixture(t, { invalidToken = false, region = 'us-east', prUrl = 'https:/
   } finally { Module._load = load; }
   const close = () => { for (const item of subscriptions) item.dispose(); delete require.cache[file]; };
   t.after(close);
-  return { commands, requests, inputs, picks, clipboard, inputOptions, provider, errors, activeId, close, opened, documents };
+  return { commands, executed, requests, inputs, picks, clipboard, inputOptions, provider, errors, activeId, close, opened, documents };
 }
 
 test('task uses only the credential name and continues after window disposal', async t => {
@@ -98,9 +100,10 @@ test('one inline cancel action applies only to queued or running tasks', async t
 
 test('an invalid Tervory credential cannot select an arbitrary server', async t => {
   const f = fixture(t, { invalidToken: true });
-  await f.commands.get('tervory.agents.start')();
+  const items = await f.provider.getChildren();
   assert.equal(f.requests.length, 0);
-  assert.deepEqual(f.errors, ['Connect Tervory first.']);
+  assert.equal(items[0].label, 'Connect Tervory or refresh the view');
+  assert.equal(items[0].command.command, 'tervory.agents.connect');
 });
 
 
@@ -170,4 +173,11 @@ test('ZA uses its local public Tank while Boston uses the existing command proxy
   const f = fixture(t, { region: 'za' });
   await f.provider.getChildren();
   assert.equal(f.requests[0].path, '/v1/window-agents/jobs');
+});
+
+test('agents reuse Trigger sign-in instead of requesting a separate personal token', async t => {
+  const f = fixture(t);
+  await f.commands.get('tervory.agents.connect')();
+  assert.deepEqual(f.executed, ['tervory.signIn']);
+  assert.deepEqual(f.inputOptions, []);
 });

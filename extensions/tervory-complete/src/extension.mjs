@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { installInlineEdit } from './inline-edit.mjs';
-import { Tank, run, session, safe, receiptLines } from '@tervory/cli-client';
+import { Tank, session, safe, receiptLines } from '@tervory/cli-client';
 
 const config = () => vscode.workspace.getConfiguration('tervory.complete');
 const PATH = '/v1/command/complete';
@@ -60,8 +60,13 @@ export async function contextFor(document, position, selection) {
 
 export async function activate(context) {
   const output = vscode.window.createOutputChannel('Tervory');
-  const store = { get: () => context.secrets.get('cli-session'), set: value => context.secrets.store('cli-session', value),
-    remove: () => context.secrets.delete('cli-session') };
+  const panel = async () => {
+    const extension = vscode.extensions.getExtension('tervory.tervory-panel');
+    if (!extension) throw new Error('Tervory panel is unavailable');
+    return extension.activate();
+  };
+  const store = { get: async () => (await panel()).credentials.get(),
+    set: async value => (await panel()).credentials.set(value), remove: async () => (await panel()).credentials.remove() };
   let transport = fetch;
   let credentialStore = store;
   const hint = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -74,9 +79,6 @@ export async function activate(context) {
   const changed = vscode.workspace.onDidChangeTextDocument(cancel);
   const moved = vscode.window.onDidChangeTextEditorSelection(cancel);
   const switched = vscode.window.onDidChangeActiveTextEditor(cancel);
-  const io = { interactive: true, write: text => output.append(safe(text)),
-    open: url => vscode.env.openExternal(vscode.Uri.parse(url)),
-    deviceName: () => 'tervory-window', prompt: prompt => vscode.window.showInputBox({ prompt }) };
 
   async function call(payload, signal, timeoutMs) {
     // Authentication, refresh and response parsing all share the short deadline.
@@ -131,10 +133,10 @@ export async function activate(context) {
   let explicit = false;
   const register = (name, handler) => context.subscriptions.push(vscode.commands.registerCommand(`tervory.complete.${name}`, handler));
   register('signIn', async () => {
-    try { await run(['login', '--region', config().get('region')], { store, transport, io }); }
+    try { await (await panel()).signIn(config().get('region')); }
     catch { vscode.window.showErrorMessage('Sign in failed'); }
   });
-  register('signOut', async () => { cancel(); await run(['logout'], { store, transport, io }); });
+  register('signOut', async () => { cancel(); await (await panel()).signOut(); });
   register('togglePaid', async () => {
     const mode = await vscode.window.showQuickPick(['ask', 'auto'], { title: 'Ask / Auto' });
     if (mode) { cancel(); await config().update('paidMode', mode, vscode.ConfigurationTarget.Global); }
@@ -154,6 +156,6 @@ export async function activate(context) {
   return { provider, contextFor, edit,
     // Injection exists only for the extension-test host, never a setting or command.
     configureTest: context.extensionMode === vscode.ExtensionMode.Test ? options => {
-      transport = options.transport; credentialStore = options.store;
+      transport = options.transport; credentialStore = options.store ?? store;
     } : undefined };
 }

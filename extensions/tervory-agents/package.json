@@ -24,7 +24,7 @@
       },
       {
         "command": "tervory.agents.connect",
-        "title": "Connect Tervory"
+        "title": "Trigger sign-in"
       },
       {
         "command": "tervory.agents.vault",
@@ -76,5 +76,8 @@
         }
       ]
     }
-  }
+  },
+  "extensionDependencies": [
+    "tervory.tervory-panel"
+  ]
 }

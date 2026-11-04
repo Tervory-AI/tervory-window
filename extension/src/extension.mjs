@@ -34,6 +34,7 @@ export async function activate(vscode, context) {
     const region = ['us-east', 'za'].includes(selected) ? { value: selected } : await vscode.window.showQuickPick([{ label: 'US', value: 'us-east' }, { label: 'ZA', value: 'za' }], { title: 'Trigger sign-in' });
     if (!region) return;
     await client.run(['login', '--region', region.value], { store, io: { interactive: true, write: text => { const code = /Confirm the page shows code ([A-Za-z0-9-]+)\./.exec(String(text)); if (code) send({ type: 'deviceCode', code: code[1] }); }, deviceName: () => 'Tervory desktop', open: url => vscode.env.openExternal(vscode.Uri.parse(url)) } });
+    send({ type: 'auth', signedIn: !!(await store.get()) });
   }
   async function reviewEdit(local, patch, signal) {
     const files = splitDiff(patch); const cards = []; let index = 0;
@@ -136,7 +137,7 @@ export async function activate(vscode, context) {
           if (!message || typeof message.type !== 'string') return;
           if (message.type === 'approve' && approval && message.id === approval.id && typeof message.approved === 'boolean') { approval.finish(message.approved); return; }
           if (message.type === 'cancel') { approval?.finish(false); session?.abort.abort(); session?.input.close(); review?.done(new Set()); return; }
-          if (message.type === 'signIn') { await signIn(message.region); send({ type: 'auth', signedIn: !!(await store.get()) }); return; }
+          if (message.type === 'signIn') { await signIn(message.region); return; }
           if (message.type === 'ready') { send({ type: 'auth', signedIn: !!(await store.get()) }); return; }
           if (message.type === 'newChat') { session?.abort.abort(); session?.input.close(); review?.done(new Set()); send({ type: 'newChat' }); return; }
           if (message.type === 'plugins') {
@@ -196,7 +197,8 @@ export async function activate(vscode, context) {
   context.subscriptions.push(vscode.commands.registerCommand('tervory.focus', () => vscode.commands.executeCommand('tervory.panel.focus')));
   context.subscriptions.push(vscode.commands.registerCommand('tervory.signIn', signIn));
   context.subscriptions.push({ dispose() { approval?.finish(false); session?.abort.abort(); session?.input.close(); terminal?.dispose(); documents.clear(); } });
-  return { provider, signIn };
+  return { provider, signIn, credentials: store, getSessionToken: () => client.session(store),
+    signOut: async () => { approval?.finish(false); session?.abort.abort(); session?.input.close(); await client.run(['logout'], { store, io: { write() {} } }); send({ type: 'auth', signedIn: false }); } };
 }
 
 export function html(nonce) {

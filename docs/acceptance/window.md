@@ -23,13 +23,15 @@ Open a trusted local Git project with `file.txt` and `second.txt` containing `ol
 | WINDOW-17 | Agents → Start task | Choose a saved GitHub credential name, enter owner/repository and a task, close the window | Worker receives only the credential name; the submitted task is not cancelled by window disposal | none |
 | WINDOW-18 | Save GitHub credential | Enter a credential name and token in the masked form | Token goes to the authenticated worker vault; it is not included in task bodies | none |
 | WINDOW-19 | Agents → Cancel | Select Cancel on a queued or running task | One cancellation request for that job; finished jobs have no cancel action | none |
-| WINDOW-20 | Connect Tervory | Enter `invalid` instead of a personal token | Personal token refused.; no arbitrary server is contacted | none |
+| WINDOW-20 | Agents with an expired or invalid Trigger session | Open the Agents view with the offline invalid-session fixture | Connect Tervory or refresh the view; no server is contacted | none |
 | WINDOW-21 | Review pull request | Choose `github`, enter `alice/project` and PR number `8` in the offline fixture | Worker receives PR 8 and the credential name; no token or model override in the request | none |
 | WINDOW-22 | PR review webhook | Choose `github`, enter `alice/project`, select Disable | Webhook is disabled; nothing is copied to the clipboard | none |
 | WINDOW-23 | PR review webhook | Choose `github`, enter `alice/project`, select Enable, then Copy webhook secret | Only that explicit choice copies the returned fixture secret | none |
 
 | WINDOW-24 | Agents → Finished → Open pull request | Open the finished `alice/other #8` fixture review | Running and Finished groups are shown; the PR opens at https://github.com/alice/other/pull/8 | none |
 | WINDOW-25 | Agents → Show receipt | Show the running fixture job’s receipt | Recorded cost: $0.010000; input 3, output 5 tokens; unrelated response fields are omitted | none |
+| WINDOW-26 | Agents → Trigger sign-in | Select Trigger sign-in | Opens the panel’s existing Trigger sign-in flow; no separate personal-token prompt | none |
+| WINDOW-27 | Command Palette → Tervory: Sign out | Run Sign out, then open the Tervory panel | Trigger sign-in; the shared CLI session is cleared | none |
 
 
 Complete and agents are integrated from their own commits. Index is pending its owner branch. The native boot job runs the owner's completion/inline-edit editor suite against the built Tervory executable. Offline acceptance shares one execution of that suite across its three individually checked rows. Prepare the editor dependency with `node build/test-editor.mjs` before running offline tests. Without VSCODE_EXECUTABLE_PATH, Linux x64 uses a checksum-pinned stock VSCodium fixture. Tests themselves do not download it. Panel basics follow the approved Figma register. Builds are unsigned; signing setting names are in ../ops/FOUNDER-SETTINGS.md.

@@ -26,7 +26,9 @@ exports.run = async () => {
   const extension = vscode.extensions.getExtension('tervory.tervory-complete');
   const api = await extension.activate();
   assert.equal(typeof api.configureTest, 'function');
-  api.configureTest({ store: { get: async () => token }, transport: (url, opts) => fetch(base + new URL(url).pathname, opts) });
+  const panel = await vscode.extensions.getExtension('tervory.tervory-panel').activate();
+  await panel.credentials.set(token);
+  api.configureTest({ transport: (url, opts) => fetch(base + new URL(url).pathname, opts) });
   const config = vscode.workspace.getConfiguration('tervory.complete');
   const open = async (name, options = {}) => {
     const uri = vscode.Uri.joinPath(vscode.workspace.workspaceFolders[0].uri, name);
@@ -132,8 +134,13 @@ exports.run = async () => {
     await vscode.workspace.fs.writeFile(rulesUri, Buffer.from('x'.repeat(12001)));
     await assert.rejects(api.contextFor(document, new vscode.Position(0, 0)), /rules exceed/);
     console.log('PASS project rules: re-read on request, missing file, oversize fails closed');
+    await vscode.commands.executeCommand('tervory.complete.signOut');
+    await assert.rejects(panel.getSessionToken(), /Login required/);
+    assert.equal(await panel.credentials.get(), undefined);
+    console.log('PASS shared sign-out: editor command clears the panel CLI session');
     await require('node:fs/promises').writeFile(process.env.TERVORY_TEST_RESULT, 'passed');
   } finally {
+    await panel.credentials.remove();
     server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
   }
 };

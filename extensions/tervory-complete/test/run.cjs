@@ -16,7 +16,7 @@ const { runTests } = require('@vscode/test-electron');
   await runTests({
     extensionTestsEnv: { TERVORY_TEST_RESULT: resultPath },
     ...(process.env.VSCODE_EXECUTABLE_PATH ? { vscodeExecutablePath: process.env.VSCODE_EXECUTABLE_PATH } : {}),
-    extensionDevelopmentPath: root,
+    extensionDevelopmentPath: process.env.TERVORY_BUILT_WINDOW === '1' ? root : [root, path.resolve(root, '../../extension')],
     extensionTestsPath: path.join(__dirname, 'suite.cjs'),
     launchArgs: [path.join(scratch, 'project'), '--no-sandbox', '--disable-gpu', '--disable-extensions',
       '--skip-welcome', '--skip-release-notes', '--disable-workspace-trust',
