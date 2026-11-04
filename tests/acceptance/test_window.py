@@ -11,8 +11,12 @@ CASES.update({14:'editor:autocomplete',15:'editor:inline edit',16:'editor:projec
 
 @lru_cache(maxsize=1)
 def editor_proof():
-    result = subprocess.run(['node', 'test/editor-suite.mjs'], cwd=ROOT, env=dict(os.environ, TMPDIR=str(ROOT / '.tmp')), check=False, timeout=300, capture_output=True, text=True)
-    return result.returncode, result.stdout + result.stderr
+    try:
+        result = subprocess.run(['node', 'test/editor-suite.mjs'], cwd=ROOT, env=dict(os.environ, TMPDIR=str(ROOT / '.tmp')), check=False, timeout=300, capture_output=True, text=True)
+        return result.returncode, result.stdout + result.stderr
+    except subprocess.TimeoutExpired as error:
+        proof = (error.stdout or b'') + (error.stderr or b'')
+        return 124, 'Editor acceptance timed out on this host.\n' + proof.decode('utf8', errors='replace')
 
 class WindowAcceptance(unittest.TestCase):
     def test_one_row_one_case(self):
