@@ -28,7 +28,7 @@ await installTunnel(source, built, pin);
 // our own build below, with the unmodified CLI source, rather than a second agent.
 const resources = platform === 'darwin' ? resolve(built, 'Tervory.app/Contents/Resources/app') : resolve(built, 'resources/app');
 await rm(resolve(resources, 'extensions/copilot'), { recursive: true, force: true });
-await installExtensions(root, resources);
+const builtinIds = await installExtensions(root, resources);
 if (platform === 'darwin') await sealMacApp(source, resolve(built, 'Tervory.app'));
 const out = resolve(root, 'dist'); await mkdir(out, { recursive: true });
 // Use the upstream platform installers. Signing stays off until configured.
@@ -37,7 +37,7 @@ if (platform === 'win32') {
   npm(['run', 'gulp', '--', `vscode-win32-${arch}-user-setup`]);
   await cp(resolve(source, `.build/win32-${arch}/user-setup/VSCodeSetup.exe`), resolve(out, `tervory-window-win32-${arch}-setup.exe`));
 } else if (platform === 'linux') {
-  await checkLinuxAbi(built);
+  await checkLinuxAbi(built, builtinIds);
   npm(['run', 'gulp', '--', `vscode-linux-${arch}-prepare-deb`]);
   npm(['run', 'gulp', '--', `vscode-linux-${arch}-build-deb`]);
   const debs = resolve(source, `.build/linux/deb/${arch === 'x64' ? 'amd64' : 'arm64'}/deb`);

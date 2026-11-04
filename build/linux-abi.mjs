@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
-import { readdir, open } from 'node:fs/promises';
+import { readdir, open, readFile } from 'node:fs/promises';
 import { resolve, relative } from 'node:path';
-export async function checkLinuxAbi(built) {
+export async function checkLinuxAbi(built, builtinIds) {
   const files = [resolve(built, 'tervory'), resolve(built, 'bin/tervory-tunnel'), resolve(built, 'chrome-sandbox'), resolve(built, 'chrome_crashpad_handler')];
   async function visit(folder) {
     for (const item of await readdir(folder, { withFileTypes: true })) {
@@ -15,7 +15,16 @@ export async function checkLinuxAbi(built) {
     }
   }
   await visit(resolve(built, 'resources/app/node_modules.asar.unpacked'));
-  await visit(resolve(built, 'resources/app/extensions'));
+  // The upstream dependency contract covers its core runtime. Apply the same
+  // baseline to every built-in we add, including its native dependencies.
+  // Upstream optional brokers keep their own platform compatibility/fallbacks.
+  const extensions=resolve(built,'resources/app/extensions');
+  for(const entry of await readdir(extensions,{withFileTypes:true})){
+    if(!entry.isDirectory())continue;
+    const folder=resolve(extensions,entry.name);
+    const pkg=JSON.parse(await readFile(resolve(folder,'package.json'),'utf8'));
+    if(builtinIds.includes(`${pkg.publisher}.${pkg.name}`))await visit(folder);
+  }
   for (const file of files) {
     const output = execFileSync('readelf', ['--version-info', file], { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 });
     const versions = [...new Set(output.match(/GLIBC_[0-9.]+/g) ?? [])];
