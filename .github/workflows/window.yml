@@ -1,0 +1,135 @@
+name: window
+on:
+  pull_request:
+  push:
+    tags: ['window-v*']
+  workflow_dispatch:
+env:
+  TMPDIR: ${{ github.workspace }}/.tmp
+  TEMP: ${{ github.workspace }}/.tmp
+  TMP: ${{ github.workspace }}/.tmp
+permissions:
+  contents: read
+concurrency:
+  group: window-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: mkdir -p .tmp
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24.22.1'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run prepare-source
+      - run: npm ci --prefix vendor/cli --ignore-scripts --no-audit --no-fund
+      - run: npm test
+      - run: node --test extensions/tervory-agents/test/*.test.cjs
+      - run: npm --prefix extensions/tervory-index test
+      - run: node build/test-editor.mjs
+      - run: python3 -m unittest discover -s tests/acceptance
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-latest, platform: linux, arch: x64}
+          - {runner: ubuntu-24.04-arm, platform: linux, arch: arm64}
+          - {runner: macos-15-intel, platform: darwin, arch: x64}
+          - {runner: macos-15, platform: darwin, arch: arm64}
+          - {runner: windows-latest, platform: win32, arch: x64}
+          - {runner: windows-11-arm, platform: win32, arch: arm64}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    env:
+      NODE_OPTIONS: --max-old-space-size=8192
+      GITHUB_TOKEN: ${{ github.token }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: mkdir -p .tmp
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24.22.1'
+      - name: Tag and native host match
+        env:
+          TAG: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          node --input-type=module - <<'JS'
+          import { readFileSync } from 'node:fs';
+          if (process.platform !== process.env.PLATFORM || process.arch !== process.env.ARCH) throw Error('Wrong native runner');
+          const version = JSON.parse(readFileSync('package.json')).version;
+          if (process.env.EVENT === 'push' && process.env.TAG !== 'window-v' + version) throw Error('Tag/version mismatch');
+          JS
+      - name: Windows SDK signature tools
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $windowSdkArch = '${{ matrix.arch }}'
+          $windowSigningTool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Filter signtool.exe -Recurse | Where-Object { $_.Directory.Name -eq $windowSdkArch } | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $windowSigningTool -and $windowSdkArch -eq 'arm64') {
+            $windowSigningTool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Filter signtool.exe -Recurse | Where-Object { $_.Directory.Name -eq 'x64' } | Sort-Object FullName -Descending | Select-Object -First 1
+          }
+          if (-not $windowSigningTool) { throw 'Windows SDK signature tool is missing' }
+          $windowSigningTool.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Linux native build libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang lld pkg-config libx11-dev libxkbfile-dev libsecret-1-dev libkrb5-dev libgtk-3-dev libnss3 libasound2t64 xvfb fakeroot
+      - name: ARM Electron-compatible compiler
+        if: matrix.platform == 'linux' && matrix.arch == 'arm64'
+        run: |
+          curl -fsSL --retry 3 https://apt.llvm.org/llvm-snapshot.gpg.key -o .tmp/llvm-key.asc
+          echo '8b2a587ffd672c4687e7581dad4b2f6c1bb2ad6b480cd9771ba2ff48e0b8c75d  .tmp/llvm-key.asc' | sha256sum -c -
+          gpg --dearmor --output .tmp/llvm-key.gpg .tmp/llvm-key.asc
+          sudo install -m 644 .tmp/llvm-key.gpg /usr/share/keyrings/tervory-llvm.gpg
+          echo 'deb [arch=arm64 signed-by=/usr/share/keyrings/tervory-llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' | sudo tee /etc/apt/sources.list.d/tervory-llvm.list
+          sudo apt-get update
+          compiler_version='1:23.1.6~++20261103094202+2875c6073a7e-1~exp1~20261103214217.95'
+          sudo apt-get install -y "clang-23=$compiler_version" "lld-23=$compiler_version"
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build native installer
+        id: native_build
+        run: |
+          if [ '${{ runner.os }}' = Linux ]; then xvfb-run -a npm run build; else npm run build; fi
+      - name: Boot the built window and run fake Tank acceptance
+        run: |
+          if [ '${{ runner.os }}' = Linux ]; then xvfb-run -a node test/boot.mjs; else node test/boot.mjs; fi
+      - name: Collect sanitized startup diagnostics
+        if: always()
+        run: node test/diagnostics.mjs
+      - name: Show sanitized startup diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          for f in .tmp/diagnostics/*; do
+            [ -f "$f" ] || continue
+            echo "::group::$f"
+            case "$f" in
+              *renderer*) head -c 60000 "$f" ;;
+              *) grep -iE "error|exception|fail|crash|activat|timeout" "$f" | head -80 ;;
+            esac
+            echo "::endgroup::"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: startup-${{ matrix.platform }}-${{ matrix.arch }}
+          path: .tmp/diagnostics/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always() && steps.native_build.outcome == 'success'
+        with:
+          name: tervory-window-${{ matrix.platform }}-${{ matrix.arch }}-unsigned
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30

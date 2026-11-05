@@ -1,0 +1,84 @@
+{
+  "name": "tervory-agents",
+  "displayName": "Tervory Agents",
+  "description": "Background repository tasks through the Tervory worker server",
+  "version": "0.1.0",
+  "publisher": "tervory",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "main": "./extension.cjs",
+  "activationEvents": [
+    "onView:tervory.agents"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "tervory.agents.start",
+        "title": "Start task"
+      },
+      {
+        "command": "tervory.agents.cancel",
+        "title": "Cancel",
+        "icon": "$(close)"
+      },
+      {
+        "command": "tervory.agents.connect",
+        "title": "Trigger sign-in"
+      },
+      {
+        "command": "tervory.agents.vault",
+        "title": "Save GitHub credential"
+      },
+      {
+        "command": "tervory.agents.review",
+        "title": "Review pull request"
+      },
+      {
+        "command": "tervory.agents.webhook",
+        "title": "Set up PR review webhook"
+      },
+      {
+        "command": "tervory.agents.open",
+        "title": "Open pull request",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "tervory.agents.receipt",
+        "title": "Show receipt",
+        "icon": "$(list-unordered)"
+      }
+    ],
+    "views": {
+      "tervory": [
+        {
+          "id": "tervory.agents",
+          "name": "Background agents",
+          "visibility": "collapsed"
+        }
+      ]
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "tervory.agents.cancel",
+          "when": "view == tervory.agents && viewItem == tervoryAgent.running",
+          "group": "inline"
+        },
+        {
+          "command": "tervory.agents.open",
+          "when": "view == tervory.agents && viewItem == tervoryAgent.pr",
+          "group": "inline@1"
+        },
+        {
+          "command": "tervory.agents.receipt",
+          "when": "view == tervory.agents && viewItem =~ /^tervoryAgent\\.(running|finished|pr)$/",
+          "group": "inline@2"
+        }
+      ]
+    }
+  },
+  "extensionDependencies": [
+    "tervory.tervory-panel"
+  ]
+}

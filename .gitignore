@@ -1,0 +1,10 @@
+node_modules/
+dist/
+extension/node_modules/
+extension/dist/
+extension/cli/
+
+media/
+
+.tmp/
+vendor/

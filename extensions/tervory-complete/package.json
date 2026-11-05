@@ -1,0 +1,139 @@
+{
+  "name": "tervory-complete",
+  "displayName": "Tervory Complete",
+  "publisher": "tervory",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "main": "./dist/extension.cjs",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "npm run build && node test/run.cjs"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "3.1.0",
+    "esbuild": "0.28.2"
+  },
+  "contributes": {
+    "configuration": {
+      "title": "Tervory",
+      "properties": {
+        "tervory.complete.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "A suggestion appears at the cursor in the editor."
+        },
+        "tervory.complete.paidMode": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "auto"
+          ],
+          "default": "ask",
+          "description": "Ask / Auto",
+          "scope": "application"
+        },
+        "tervory.complete.region": {
+          "type": "string",
+          "enum": [
+            "us-east",
+            "za"
+          ],
+          "default": "us-east",
+          "scope": "application"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "tervory.complete.signIn",
+        "title": "Tervory: Trigger sign-in"
+      },
+      {
+        "command": "tervory.complete.signOut",
+        "title": "Tervory: Sign out"
+      },
+      {
+        "command": "tervory.complete.request",
+        "title": "Tab autocomplete"
+      },
+      {
+        "command": "tervory.complete.togglePaid",
+        "title": "Tervory: Ask / Auto"
+      },
+      {
+        "command": "tervory.complete.inlineEdit",
+        "title": "Edit with Tervory"
+      },
+      {
+        "command": "tervory.complete.acceptEdit",
+        "title": "Accept"
+      },
+      {
+        "command": "tervory.complete.rejectEdit",
+        "title": "Reject"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "tervory.complete.inlineEdit",
+        "key": "ctrl+k",
+        "mac": "cmd+k",
+        "when": "editorTextFocus && editorHasSelection && !editorReadonly"
+      },
+      {
+        "command": "editor.action.inlineSuggest.commit",
+        "key": "tab",
+        "when": "inlineSuggestionVisible && !editorTabMovesFocus"
+      },
+      {
+        "command": "tervory.complete.dismiss",
+        "key": "escape",
+        "when": "inlineSuggestionVisible && editorTextFocus"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "tervory.complete.acceptEdit",
+          "when": "resourceScheme == tervory-edit && tervory.complete.hasEdit",
+          "group": "navigation@1"
+        },
+        {
+          "command": "tervory.complete.rejectEdit",
+          "when": "resourceScheme == tervory-edit && tervory.complete.hasEdit",
+          "group": "navigation@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "tervory.complete.inlineEdit",
+          "when": "editorHasSelection && !editorReadonly",
+          "group": "1_modification"
+        }
+      ]
+    },
+    "languages": [
+      {
+        "id": "tervory-review",
+        "aliases": [
+          "Tervory review"
+        ]
+      }
+    ],
+    "configurationDefaults": {
+      "[tervory-review]": {
+        "diffEditor.renderSideBySide": false,
+        "diffEditor.codeLens": true
+      }
+    }
+  },
+  "extensionDependencies": [
+    "tervory.tervory-panel"
+  ]
+}

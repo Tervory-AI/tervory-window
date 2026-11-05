@@ -1,0 +1,20 @@
+{
+  "name": "tervory-window-build",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "prepare-source": "node build/prepare.mjs",
+    "build": "node build/build.mjs",
+    "lint": "node scripts/lint.mjs",
+    "vendor-cli": "node build/vendor-cli.mjs"
+  },
+  "dependencies": {
+    "@fontsource/inter": "5.2.8",
+    "png2icons": "2.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2"
+  }
+}
