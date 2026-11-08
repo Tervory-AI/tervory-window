@@ -1,6 +1,6 @@
 {
   "name": "tervory-complete",
-  "displayName": "Tervory Complete",
+  "displayName": "Opli Code Complete",
   "publisher": "tervory",
   "version": "0.1.0",
   "private": true,
@@ -21,7 +21,7 @@
   },
   "contributes": {
     "configuration": {
-      "title": "Tervory",
+      "title": "Opli Code",
       "properties": {
         "tervory.complete.enabled": {
           "type": "boolean",
@@ -52,11 +52,11 @@
     "commands": [
       {
         "command": "tervory.complete.signIn",
-        "title": "Tervory: Trigger sign-in"
+        "title": "Opli Code: Trigger sign-in"
       },
       {
         "command": "tervory.complete.signOut",
-        "title": "Tervory: Sign out"
+        "title": "Opli Code: Sign out"
       },
       {
         "command": "tervory.complete.request",
@@ -64,11 +64,11 @@
       },
       {
         "command": "tervory.complete.togglePaid",
-        "title": "Tervory: Ask / Auto"
+        "title": "Opli Code: Ask / Auto"
       },
       {
         "command": "tervory.complete.inlineEdit",
-        "title": "Edit with Tervory"
+        "title": "Edit with Opli Code"
       },
       {
         "command": "tervory.complete.acceptEdit",

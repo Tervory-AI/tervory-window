@@ -7,7 +7,7 @@ const config = () => vscode.workspace.getConfiguration('tervory.complete');
 const PATH = '/v1/command/complete';
 const panelApi = async () => {
   const extension = vscode.extensions.getExtension('tervory.tervory-panel');
-  if (!extension) throw new Error('Tervory panel is unavailable');
+  if (!extension) throw new Error('Opli Code panel is unavailable');
   return extension.activate();
 };
 const delay = (ms, signal) => new Promise((resolve, reject) => {
@@ -64,7 +64,7 @@ export async function contextFor(document, position, selection) {
 }
 
 export async function activate(context) {
-  const output = vscode.window.createOutputChannel('Tervory');
+  const output = vscode.window.createOutputChannel('Opli Code');
   const panel = panelApi;
   const store = { get: async () => (await panel()).credentials.get(),
     set: async value => (await panel()).credentials.set(value), remove: async () => (await panel()).credentials.remove() };

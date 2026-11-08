@@ -1,8 +1,8 @@
-name: window
+name: Opli Code
 on:
   pull_request:
   push:
-    tags: ['window-v*']
+    tags: ['opli-code-v*']
   workflow_dispatch:
 env:
   TMPDIR: ${{ github.workspace }}/.tmp
@@ -67,7 +67,7 @@ jobs:
           import { readFileSync } from 'node:fs';
           if (process.platform !== process.env.PLATFORM || process.arch !== process.env.ARCH) throw Error('Wrong native runner');
           const version = JSON.parse(readFileSync('package.json')).version;
-          if (process.env.EVENT === 'push' && process.env.TAG !== 'window-v' + version) throw Error('Tag/version mismatch');
+          if (process.env.EVENT === 'push' && process.env.TAG !== 'opli-code-v' + version) throw Error('Tag/version mismatch');
           JS
       - name: Windows SDK signature tools
         if: runner.os == 'Windows'
@@ -129,7 +129,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always() && steps.native_build.outcome == 'success'
         with:
-          name: tervory-window-${{ matrix.platform }}-${{ matrix.arch }}-unsigned
+          name: opli-code-${{ matrix.platform }}-${{ matrix.arch }}-unsigned
           path: dist/
           if-no-files-found: error
           retention-days: 30

@@ -42,7 +42,7 @@ formatting. Credentials use the editor's SecretStorage. No model or URL setting
 is exposed. The same extension code uses native editor APIs on Linux, macOS and
 Windows; stock VSCodium Linux is the exercised host in this change.
 
-`Tervory: Ask / Auto` selects spending behavior at application scope (a repository
+`Opli Code: Ask / Auto` selects spending behavior at application scope (a repository
 cannot enable Auto). Typing in Ask mode does not dispatch. `Tab autocomplete`
 asks once for a request. Auto debounces typing and closes superseded requests.
 Tab accepts the editor's ghost text; typing, cursor moves or Escape dismiss it.
@@ -52,7 +52,7 @@ then nearby tabs in split editors; duplicate documents are included once. Missin
 string; unreadable or oversized rules stop the request rather than silently
 omitting them. Rules are re-read for each completion and selected-code edit.
 
-Select text and press Ctrl+K (Cmd+K on macOS), or run `Edit with Tervory`. Describe
+Select text and press Ctrl+K (Cmd+K on macOS), or run `Edit with Opli Code`. Describe
 the change in the native input, review the native inline diff, then Accept or
 Reject in the editor title or CodeLens. The preview uses read-only virtual
 documents and language-scoped inline-diff defaults, leaving the source unchanged

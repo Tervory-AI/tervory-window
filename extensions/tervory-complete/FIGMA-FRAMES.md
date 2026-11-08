@@ -8,7 +8,7 @@ from [Tank PR #685](https://github.com/Tervory-AI/tervory-tank/pull/685),
 | State | Approved nodes (1440 / 1280) | Native editor wording |
 | --- | --- | --- |
 | Autocomplete | 557:1461 / 557:1555 | Tab autocomplete; A suggestion appears at the cursor in the editor.; Tab to accept    Esc to dismiss |
-| Selection | 557:1649 / 557:1746 | Edit with Tervory; Describe edit |
+| Selection | 557:1649 / 557:1746 | Edit with Opli Code; Describe edit |
 | Instruction | 557:1843 / 557:1940 | Inline edit; Describe the change for the selected code.; Propose edit |
 | Diff | 557:2037 / 557:2141 | Inline edit; Review the diff in place before applying it.; Accept; Reject |
 

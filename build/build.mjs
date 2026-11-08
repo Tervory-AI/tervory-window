@@ -26,16 +26,16 @@ const built = resolve(source, `../VSCode-${platform}-${arch}`);
 await installTunnel(source, built, pin);
 // Copilot is excluded from the distribution. Tervory's extension is copied from
 // our own build below, with the unmodified CLI source, rather than a second agent.
-const resources = platform === 'darwin' ? resolve(built, 'Tervory.app/Contents/Resources/app') : resolve(built, 'resources/app');
+const resources = platform === 'darwin' ? resolve(built, 'Opli Code.app/Contents/Resources/app') : resolve(built, 'resources/app');
 await rm(resolve(resources, 'extensions/copilot'), { recursive: true, force: true });
 const builtinIds = await installExtensions(root, resources);
-if (platform === 'darwin') await sealMacApp(source, resolve(built, 'Tervory.app'));
+if (platform === 'darwin') await sealMacApp(source, resolve(built, 'Opli Code.app'));
 const out = resolve(root, 'dist'); await mkdir(out, { recursive: true });
 // Use the upstream platform installers. Signing stays off until configured.
 if (platform === 'win32') {
   npm(['run', 'gulp', '--', `vscode-win32-${arch}-inno-updater`]);
   npm(['run', 'gulp', '--', `vscode-win32-${arch}-user-setup`]);
-  await cp(resolve(source, `.build/win32-${arch}/user-setup/VSCodeSetup.exe`), resolve(out, `tervory-window-win32-${arch}-setup.exe`));
+  await cp(resolve(source, `.build/win32-${arch}/user-setup/VSCodeSetup.exe`), resolve(out, `opli-code-win32-${arch}-setup.exe`));
 } else if (platform === 'linux') {
   await checkLinuxAbi(built, builtinIds);
   npm(['run', 'gulp', '--', `vscode-linux-${arch}-prepare-deb`]);
@@ -43,10 +43,10 @@ if (platform === 'win32') {
   const debs = resolve(source, `.build/linux/deb/${arch === 'x64' ? 'amd64' : 'arm64'}/deb`);
   for (const deb of await readdir(debs)) if (deb.endsWith('.deb')) await cp(resolve(debs, deb), resolve(out, deb));
 } else {
-  const image = resolve(out, `tervory-window-darwin-${arch}.dmg`);
+  const image = resolve(out, `opli-code-darwin-${arch}.dmg`);
   for (let attempt = 0; ; attempt++) {
     try {
-      const output = execFileSync('hdiutil', ['create', '-volname', 'Tervory', '-srcfolder', built, '-fs', 'HFS+', '-ov', '-format', 'UDZO', image], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+      const output = execFileSync('hdiutil', ['create', '-volname', 'Opli Code', '-srcfolder', built, '-fs', 'HFS+', '-ov', '-format', 'UDZO', image], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
       process.stdout.write(output); break;
     } catch (error) {
       const message = String(error.stderr ?? ''); process.stderr.write(message);
@@ -55,7 +55,7 @@ if (platform === 'win32') {
     }
   }
 }
-const file = `tervory-window-${platform}-${arch}.tar.gz`;
+const file = `opli-code-${platform}-${arch}.tar.gz`;
 const archiveTool = platform === 'win32' ? resolve(process.env.SystemRoot, 'System32/tar.exe') : 'tar';
 execFileSync(archiveTool, ['-czf', file, '-C', built, '.'], { cwd: out, stdio: 'inherit' });
 let sums = '';

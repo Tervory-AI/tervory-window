@@ -1,6 +1,6 @@
 # Window agents
 
-This extension runs in the existing VS Code compatible Tervory window on Windows,
+This extension runs in the existing VS Code compatible Opli Code on Windows,
 macOS and Linux. It installs nothing on the user's laptop beyond the window.
 Use Connect Tervory to store the personal credential in the window's secret store.
 Use Save GitHub credential to send a masked field directly to the server vault;
