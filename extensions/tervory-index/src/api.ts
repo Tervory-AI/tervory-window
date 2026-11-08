@@ -9,6 +9,8 @@ export interface IndexApi {
   refresh():Promise<void>;
   fileCount():number;
   search(query:string, options?:SearchOptions):Promise<CodeMatch[]>;
+  hasSource(path:string,workspaceUri:string):Promise<boolean>;
+  getRepositoryMap(query:string,options:ContextOptions & {workspaceUri:string}):Promise<CodeMatch[]>;
   getRelevantCode(query:string, options?:ContextOptions):Promise<CodeMatch[]>;
 }
 export function budget(matches:CodeMatch[],maxCharacters=12000):CodeMatch[] {

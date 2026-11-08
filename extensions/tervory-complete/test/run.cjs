@@ -1,8 +1,20 @@
 const path = require('node:path');
 const fs = require('node:fs/promises');
+const { realpathSync } = require('node:fs');
+const { execFileSync } = require('node:child_process');
 const { runTests } = require('@vscode/test-electron');
 (async () => {
   const root = path.resolve(__dirname, '..');
+  const index = path.resolve(root, '../tervory-index');
+  const nodeBin = path.dirname(process.execPath);
+  const npm = process.env.npm_execpath ?? (process.platform === 'win32'
+    ? path.join(nodeBin, 'node_modules/npm/bin/npm-cli.js') : realpathSync(path.join(nodeBin, 'npm')));
+  // This dev-host suite now exercises the shared index API as well as the panel.
+  // Reuse its lock and compiler; map-only context needs no model assets.
+  if (process.env.TERVORY_BUILT_WINDOW !== '1') {
+    execFileSync(process.execPath, [npm, 'ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: index, stdio: 'inherit' });
+    execFileSync(process.execPath, [npm, 'run', 'build'], { cwd: index, stdio: 'inherit' });
+  }
   const tmp = path.resolve(root, '../../.tmp');
   await fs.mkdir(tmp, { recursive: true });
   const scratch = await fs.mkdtemp(path.join(tmp, 'complete-electron-'));
@@ -11,12 +23,13 @@ const { runTests } = require('@vscode/test-electron');
   await fs.writeFile(path.join(scratch, 'project/split.js'), 'const splitContext = true;\n');
   await fs.writeFile(path.join(scratch, 'project/near.js'), 'const nearby = 1;\n');
   await fs.writeFile(path.join(scratch, 'project/main.js'), 'function answer() {\n  \n}\n');
+  execFileSync('git', ['init', '-q', path.join(scratch, 'project')]);
   const resultPath = path.join(scratch, 'passed');
   await fs.rm(resultPath, { force: true });
   await runTests({
     extensionTestsEnv: { TERVORY_TEST_RESULT: resultPath },
     ...(process.env.VSCODE_EXECUTABLE_PATH ? { vscodeExecutablePath: process.env.VSCODE_EXECUTABLE_PATH } : {}),
-    extensionDevelopmentPath: process.env.TERVORY_BUILT_WINDOW === '1' ? process.env.TERVORY_COMPLETE_EXTENSION_PATH : [root, path.resolve(root, '../../extension')],
+    extensionDevelopmentPath: process.env.TERVORY_BUILT_WINDOW === '1' ? process.env.TERVORY_COMPLETE_EXTENSION_PATH : [root, path.resolve(root, '../../extension'), path.resolve(root, '../tervory-index')],
     extensionTestsPath: path.join(__dirname, 'suite.cjs'),
     launchArgs: [path.join(scratch, 'project'), '--no-sandbox', '--disable-gpu', '--disable-extensions',
       '--skip-welcome', '--skip-release-notes', '--disable-workspace-trust',

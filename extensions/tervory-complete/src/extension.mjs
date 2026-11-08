@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { boundedContext } from '../../../extension/src/project-context.mjs';
 import { installInlineEdit } from './inline-edit.mjs';
 import { Tank, session, safe, receiptLines } from '@tervory/cli-client';
 
@@ -18,8 +19,12 @@ const delay = (ms, signal) => new Promise((resolve, reject) => {
 
 export async function contextFor(document, position, selection) {
   const root = vscode.workspace.getWorkspaceFolder(document.uri);
-  const rules = root ? await (await panelApi()).projectRules(root.uri) : '';
-  const text = document.getText();
+  if (!root) throw Error('Code tool refused.');
+  const panel = await panelApi();
+  const raw = document.getText();
+  const project = await panel.projectContext(root.uri, raw.slice(Math.max(0, document.offsetAt(position) - 2000), document.offsetAt(position)));
+  const text = await panel.projectSource(root.uri, document.uri, raw);
+  const rules = project.rules;
   const start = selection ? document.offsetAt(selection.start) : document.offsetAt(position);
   const end = selection ? document.offsetAt(selection.end) : start;
   const groups = vscode.window.tabGroups.all;
@@ -46,11 +51,16 @@ export async function contextFor(document, position, selection) {
     if (!doc || !root || seen.has(doc.uri.toString())
         || vscode.workspace.getWorkspaceFolder(doc.uri)?.uri.toString() !== root.uri.toString()) continue;
     seen.add(doc.uri.toString());
-    tabs.push({ path: vscode.workspace.asRelativePath(doc.uri).slice(0, 500), text: doc.getText().slice(0, 4000) });
+    try {
+      const safe = await panel.projectSource(root.uri, doc.uri, doc.getText());
+      tabs.push({ path: vscode.workspace.asRelativePath(doc.uri).slice(0, 500), text: safe.slice(0, 4000) });
+    } catch { continue; }
     if (tabs.length === 3) break;
   }
-  return { prefix: text.slice(Math.max(0, start - 12000), start), suffix: text.slice(end, end + 8000),
-    language: document.languageId, rules, tabs, ...(selection ? { selection: text.slice(start, end) } : {}) };
+  const paths = new Set(tabs.map(tab => tab.path));
+  tabs.push(...project.tabs.filter(tab => !paths.has(tab.path)));
+  return boundedContext({ prefix: text.slice(Math.max(0, start - 12000), start), suffix: text.slice(end, end + 8000),
+    language: document.languageId, rules, tabs, ...(selection ? { selection: text.slice(start, end) } : {}) });
 }
 
 export async function activate(context) {

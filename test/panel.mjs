@@ -22,7 +22,7 @@ export async function scenario(name, activatePanel = activate) {
   const commands=new Map();
   const vscode={
     Uri:{parse:uri,file:uri}, Range:class{constructor(...args){this.args=args;}},
-    extensions:{getExtension(id){assert.equal(id,'tervory.tervory-index');if(!['index-context','search'].includes(name))return;return{activate:async()=>({getRelevantCode:async(query,options)=>{assert(options.maxCharacters===12000);return[{path:'file.txt',startLine:1,endLine:1,text:'cached text must not be trusted'},{path:'.git/config',startLine:1,endLine:1,text:'must not be sent'}];},search:async()=>[{path:'file.txt',startLine:1,endLine:1,text:'cached text must not be trusted'}]})};}}, EventEmitter:class{event=()=>({dispose(){}});fire(value){terminals.push(value);}dispose(){}},
+    extensions:{getExtension(id){assert.equal(id,'tervory.tervory-index');if(!['index-context','search'].includes(name))return;return{activate:async()=>({getRepositoryMap:async(query,options)=>{assert.equal(options.workspaceUri,root);return[{path:'file.txt',startLine:1,endLine:1,text:'cached text must not be trusted'},{path:'.git/config',startLine:1,endLine:1,text:'must not be sent'}];},search:async()=>[{path:'file.txt',startLine:1,endLine:1,text:'cached text must not be trusted'}]})};}}, EventEmitter:class{event=()=>({dispose(){}});fire(value){terminals.push(value);}dispose(){}},
     workspace:{isTrusted:true,workspaceFolders:[{uri:uri(root)}],asRelativePath:()=> 'file.txt',registerTextDocumentContentProvider:()=>({dispose(){}})},
     env:{openExternal:async value=>{assert(value.toString().startsWith('https://'));}},
     commands:{registerCommand:(id,fn)=>{commands.set(id,fn);return{dispose(){}};},executeCommand:async(...args)=>{previews.push(args);}},
