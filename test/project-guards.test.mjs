@@ -47,6 +47,12 @@ test('shared panel context preserves rules and guards every unsaved source again
     await assert.rejects(panel.projectSource(uri(other), uri(join(other, 'foreign.ts')), 'other project'), /refused/);
     await writeFile(join(root, '.tervory/rules'), 'Updated project rule.');
     assert.equal((await panel.projectContext(rootUri, 'correctBoundary')).rules, 'Updated project rule.');
+    const attachment = { path: 'safe.ts', uri: uri(join(root, 'safe.ts')) };
+    await writeFile(join(root, 'safe.ts'), 'export function refreshedAttachment() {}');
+    assert((await panel.projectContext(rootUri, 'refreshedAttachment', [attachment])).tabs[0].text.includes('refreshedAttachment'));
+    await writeFile(join(root, 'safe.ts'), 'x'.repeat(50000));
+    await assert.rejects(panel.projectContext(rootUri, 'source', [attachment]), /Selection exceeds/);
+    await assert.rejects(panel.projectContext(rootUri, 'source', [{ path: '../other/foreign.ts', uri: uri(join(other, 'foreign.ts')) }]), /refused/);
     trusted = false;
     await assert.rejects(panel.projectContext(rootUri, 'correctBoundary'), /Trust/);
     await assert.rejects(panel.projectSource(rootUri, uri(join(root, 'safe.ts')), 'source'), /refused/);
