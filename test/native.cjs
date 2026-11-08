@@ -2,7 +2,7 @@ const vscode=require('vscode');
 const assert=require('node:assert/strict');
 exports.run=async()=>{
  const extension=vscode.extensions.getExtension('tervory.tervory-panel');
- assert(extension,'Built-in Tervory panel is installed');
+ assert(extension,'Built-in Opli Code panel is installed');
  await extension.activate();
  assert(extension.isActive,'Panel activates in the real extension host');
  await vscode.commands.executeCommand('tervory.panel.focus');

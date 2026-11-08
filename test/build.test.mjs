@@ -24,7 +24,7 @@ test('pinned Code-OSS source is MIT and the real product patch uses Open VSX wit
   const product = JSON.parse(await readFile(resolve(source, 'product.json')));
   const {shouldGenerateNodeCompileCache}=await import('../.tmp/code-oss-source/build/lib/nodeCompileCache.ts');
   for(const platform of ['linux','darwin','win32'])for(const arch of ['x64','arm64'])assert.equal(shouldGenerateNodeCompileCache(platform,arch,product),false);
-  for (const key of ['nameShort', 'nameLong', 'win32DirName']) assert.equal(product[key], 'Tervory');
+  for (const key of ['nameShort', 'nameLong', 'win32DirName']) assert.equal(product[key], 'Opli Code');
   assert.equal(product.darwinBundleIdentifier, 'com.tervory.window');
   assert.equal(product.extensionsGallery.serviceUrl, 'https://open-vsx.org/vscode/gallery');
   assert.equal(product.enableTelemetry, false); assert.equal(product.enableCrashReporter, false);

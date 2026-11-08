@@ -23,6 +23,6 @@ test('every sibling built-in extension and its local model assets are packaged',
 });
 test('real product patch isolates Tervory identities, Open VSX and telemetry policy',()=>{
  const p=applyProduct({nameShort:'Code - OSS',win32x64AppId:'old',defaultChatAgent:{extensionId:'GitHub.copilot'},aiConfig:{ariaKey:'placeholder'},builtInExtensions:[{name:'GitHub.copilot'},{name:'debugger'}]});
- assert.equal(p.nameShort,'Tervory');assert.equal(p.nameLong,'Tervory');assert.equal(p.applicationName,'tervory');assert.notEqual(p.win32x64AppId,'old');
+ assert.equal(p.nameShort,'Opli Code');assert.equal(p.nameLong,'Opli Code');assert.equal(p.applicationName,'opli-code');assert.notEqual(p.win32x64AppId,'old');
  assert.equal(p.extensionsGallery.serviceUrl,'https://open-vsx.org/vscode/gallery');assert.equal(p.enableTelemetry,false);assert.equal(p.enableCrashReporter,false);assert.equal(p.defaultChatAgent,undefined);assert.equal(p.aiConfig,undefined);assert.deepEqual(p.builtInExtensions,[{name:'debugger'}]);
 });
