@@ -16,7 +16,7 @@ test('shared panel context preserves rules and guards every unsaved source again
   const api = {
     getRepositoryMap: async (query, options) => {
       readScope = options.workspaceUri;
-      return [{ path: 'safe.ts', startLine: 1, endLine: 1, text: 'stale cached text' },
+      return [{ path: 'safe.ts', startLine: 1, endLine: 3, text: 'stale cached text' },
         { path: '../other/foreign.ts', startLine: 1, endLine: 1, text: 'external cached text' },
         { path: '.env', startLine: 1, endLine: 1, text: 'private cached text' }];
     },
@@ -29,7 +29,7 @@ test('shared panel context preserves rules and guards every unsaved source again
   const context = { subscriptions: [], secrets: {} };
   try {
     await writeFile(join(root, '.tervory/rules'), 'Use clear names. Run existing tests.');
-    await writeFile(join(root, 'safe.ts'), 'export function correctBoundary() {}\n');
+    await writeFile(join(root, 'safe.ts'), 'export function correctBoundary(input) {\n  return input.trim();\n}\n');
     await writeFile(join(root, 'binary.ts'), Buffer.from([0, 65]));
     await writeFile(join(root, '.env'), 'private fixture');
     await writeFile(join(other, 'foreign.ts'), 'export const otherProject = true;');
@@ -38,7 +38,7 @@ test('shared panel context preserves rules and guards every unsaved source again
     const first = await panel.projectContext(rootUri, 'correctBoundary');
     assert.equal(readScope, rootUri.toString());
     assert.equal(first.rules, 'Use clear names. Run existing tests.');
-    assert.deepEqual(first.tabs, [{ path: 'safe.ts', text: 'export function correctBoundary() {}' }]);
+    assert.deepEqual(first.tabs, [{ path: 'safe.ts', text: 'export function correctBoundary(input) {\n  return input.trim();\n}' }]);
     assert.equal(await panel.projectSource(rootUri, uri(join(root, 'safe.ts')), 'export const unsaved = true;'), 'export const unsaved = true;');
     await assert.rejects(panel.projectSource(rootUri, uri(join(root, 'safe.ts')), `const apiKey = "${'placeholder'.repeat(3)}";`), /refused/);
     for (const file of ['../other/foreign.ts', '.env', '.git/config', 'binary.ts', 'linked/foreign.ts', 'ignored.ts', 'private.ts']) {
