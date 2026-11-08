@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { activate } from '../extension/src/extension.mjs';
+import { completePanelAction } from './panel-completion.mjs';
 const token = region => `tv1.${region}.${'1'.repeat(32)}.${('placeholder'+'x'.repeat(43)).slice(0,43)}`;
 const receipt = {rows:[{cost_usd:0.01,baseline_cost_usd:0.04,saved_usd:0.03}]};
 const patch = name => `--- a/${name}\n+++ b/${name}\n@@ -1 +1 @@\n-old\n+new\n`;
@@ -120,10 +121,10 @@ export async function scenario(name, activatePanel = activate) {
       else if(name==='cancel-review'){await message({type:'newChat'});assert.equal(await readFile(join(root,'file.txt'),'utf8'),'old\n');}
       else if(name==='reject') {await message({type:'accept',hunks:[]});await until(()=>outputs.filter(x=>x.type==='ready').length>=1);assert.equal(await readFile(join(root,'file.txt'),'utf8'),'old\n');}
       else {
-        await message({type:'accept',hunks:name==='partial'?[0]:[0,1]});
-        await until(async()=>await readFile(join(root,'file.txt'),'utf8')==='new\n' && await readFile(join(root,'second.txt'),'utf8')===(name==='partial'?'old\n':'new\n'));
-        assert.equal(await readFile(join(root,'second.txt'),'utf8'),name==='partial'?'old\n':'new\n');
-        if(name==='undo') {await until(()=>outputs.filter(x=>x.type==='ready').length>=1);await message({type:'undo'});await until(async()=>await readFile(join(root,'file.txt'),'utf8')==='old\n' && await readFile(join(root,'second.txt'),'utf8')==='old\n');assert.equal(await readFile(join(root,'second.txt'),'utf8'),'old\n');}
+        await completePanelAction({ send:()=>message({type:'accept',hunks:name==='partial'?[0]:[0,1]}), events:outputs, until,
+          files:[{path:join(root,'file.txt'),expected:'new\n'},{path:join(root,'second.txt'),expected:name==='partial'?'old\n':'new\n'}] });
+        if(name==='undo') await completePanelAction({ send:()=>message({type:'undo'}), events:outputs, until, approval:'Undo',
+          files:[{path:join(root,'file.txt'),expected:'old\n'},{path:join(root,'second.txt'),expected:'old\n'}] });
       }
       await message({type:'cancel'});await running;
     }

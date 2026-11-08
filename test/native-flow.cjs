@@ -5,6 +5,7 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 const {execFileSync}=require('node:child_process');
 exports.run=async vscode=>{
+ const {completePanelAction}=await import('./panel-completion.mjs');
  const root=vscode.workspace.workspaceFolders[0].uri.fsPath;
  const file=path.join(root,'native-flow.txt');await fs.writeFile(file,'old\n');execFileSync('git',['init','-q',root]);
  await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(file)));
@@ -44,9 +45,8 @@ exports.run=async vscode=>{
   await until(()=>output.some(x=>x.type==='review'));
   await receive({type:'preview',name:'native-flow.txt'});
   assert(vscode.window.tabGroups.all.some(group=>group.tabs.some(tab=>tab.input instanceof vscode.TabInputTextDiff)),'Native diff editor opened');
-  await receive({type:'accept',hunks:[0]});await until(async()=>await fs.readFile(file,'utf8')==='new\n');
-  await until(()=>output.filter(x=>x.type==='ready').length>=2);
-  await receive({type:'undo'});await until(async()=>await fs.readFile(file,'utf8')==='old\n');
+  await completePanelAction({send:()=>receive({type:'accept',hunks:[0]}),events:output,until,files:[{path:file,expected:'new\n'}]});
+  await completePanelAction({send:()=>receive({type:'undo'}),events:output,until,approval:'Undo',files:[{path:file,expected:'old\n'}]});
   await receive({type:'cancel'});await edit;await conversation;
   console.log('PASS native editor ask → diff → accept → undo');
  }finally{globalThis.fetch=original;for(const item of subscriptions)item.dispose?.();}
