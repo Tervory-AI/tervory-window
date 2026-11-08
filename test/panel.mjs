@@ -40,7 +40,11 @@ export async function scenario(name, activatePanel = activate) {
     if(parsed.pathname.endsWith('/actions')){assert.equal(body.tool,'plugins.list');return Response.json({card_id:'plugin-card',tool:'plugins.list',arguments:{},summary:'Plugins',status:'pending'});}
     if(parsed.pathname.endsWith('/cards/plugin-card')){assert.equal(body.action,'confirm');return Response.json({card_id:'plugin-card',status:'executing'});}
     if(parsed.pathname.endsWith('/placeholder-thread'))return Response.json({cards:[{card_id:'plugin-card',status:'done',result:{items:[{name:'github',version:'1.0.0',installed:true}]}}],steps:[{step_id:'plugin-card',status:'done',receipt_status:'recorded'}],receipts:[]});
-    if(parsed.pathname.endsWith('/device/code'))return Response.json({device_code:'placeholder-device',user_code:'BCDF-GHJK',verification_uri:'https://app.tervory.com/cli/device',expires_in:20,interval:1});
+    if(parsed.pathname.endsWith('/device/code')) {
+      // Mirror the already-merged CLI contract; keep the current pin's fixture supported until its separate update.
+      if(body.approval==='trigger-signin')return Response.json({device_code:'tzd1.placeholder-device',identity_provider:'trigger-signin',user_code:region==='za'?'1234-5678':'BCDF-GHJK',verification_uri:'https://auth.tervory.com/device',expires_in:20,interval:1});
+      return Response.json({device_code:'placeholder-device',user_code:'BCDF-GHJK',verification_uri:'https://app.tervory.com/cli/device',expires_in:20,interval:1});
+    }
     if(parsed.pathname.endsWith('/device/revoke')){assert.equal(body.refresh_token, `tvr1.${region}.${'1'.repeat(32)}.${('placeholder'+'r'.repeat(43)).slice(0,43)}`);return Response.json({revoked:true});}
     if(parsed.pathname.endsWith('/device/token'))return Response.json({access_token:token(region),refresh_token:`tvr1.${region}.${'1'.repeat(32)}.${('placeholder'+'r'.repeat(43)).slice(0,43)}`,expires_at:new Date(Date.now()+3600000).toISOString(),refresh_expires_at:new Date(Date.now()+86400000).toISOString()});
     assert.equal(init.headers.Authorization,`Bearer ${token(region)}`);
@@ -95,7 +99,7 @@ export async function scenario(name, activatePanel = activate) {
       // Current CLI ZA requires its pinned Zitadel response. No desktop-specific provider flow.
       if(region==='za') {
         const transport=globalThis.fetch;
-        globalThis.fetch=async(url,init)=>{const response=await transport(url,init);if(String(url).endsWith('/device/code'))return Response.json({...await response.json(),identity_provider:'zitadel',user_code:'1234-5678',verification_uri:'https://auth-za.tervory.com/device',verification_uri_complete:'https://auth-za.tervory.com/device?user_code=1234-5678'});return response;};
+        globalThis.fetch=async(url,init)=>{const response=await transport(url,init);if(String(url).endsWith('/device/code') && JSON.parse(init.body).approval!=='trigger-signin')return Response.json({...await response.json(),identity_provider:'zitadel',user_code:'1234-5678',verification_uri:'https://auth-za.tervory.com/device',verification_uri_complete:'https://auth-za.tervory.com/device?user_code=1234-5678'});return response;};
       }
       await result.signIn();assert(outputs.some(x=>x.type==='deviceCode'&&x.code===(region==='za'?'1234-5678':'BCDF-GHJK')));assert(!outputs.some(x=>x.text?.includes('auth-za')));assert(JSON.parse(secrets.get('tervory.session')).region===region);
       assert.equal(await result.getSessionToken(), token(region));
