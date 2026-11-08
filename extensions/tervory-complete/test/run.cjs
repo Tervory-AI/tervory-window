@@ -1,5 +1,6 @@
 const path = require('node:path');
 const fs = require('node:fs/promises');
+const { execFileSync } = require('node:child_process');
 const { runTests } = require('@vscode/test-electron');
 (async () => {
   const root = path.resolve(__dirname, '..');
@@ -11,12 +12,13 @@ const { runTests } = require('@vscode/test-electron');
   await fs.writeFile(path.join(scratch, 'project/split.js'), 'const splitContext = true;\n');
   await fs.writeFile(path.join(scratch, 'project/near.js'), 'const nearby = 1;\n');
   await fs.writeFile(path.join(scratch, 'project/main.js'), 'function answer() {\n  \n}\n');
+  execFileSync('git', ['init', '-q', path.join(scratch, 'project')]);
   const resultPath = path.join(scratch, 'passed');
   await fs.rm(resultPath, { force: true });
   await runTests({
     extensionTestsEnv: { TERVORY_TEST_RESULT: resultPath },
     ...(process.env.VSCODE_EXECUTABLE_PATH ? { vscodeExecutablePath: process.env.VSCODE_EXECUTABLE_PATH } : {}),
-    extensionDevelopmentPath: process.env.TERVORY_BUILT_WINDOW === '1' ? process.env.TERVORY_COMPLETE_EXTENSION_PATH : [root, path.resolve(root, '../../extension')],
+    extensionDevelopmentPath: process.env.TERVORY_BUILT_WINDOW === '1' ? process.env.TERVORY_COMPLETE_EXTENSION_PATH : [root, path.resolve(root, '../../extension'), path.resolve(root, '../tervory-index')],
     extensionTestsPath: path.join(__dirname, 'suite.cjs'),
     launchArgs: [path.join(scratch, 'project'), '--no-sandbox', '--disable-gpu', '--disable-extensions',
       '--skip-welcome', '--skip-release-notes', '--disable-workspace-trust',

@@ -5,7 +5,7 @@ export async function projectMatches(vscode, CodeFolder, root, query, context = 
   if (!extension) return [];
   const api = await extension.activate();
   const options = { workspaceUri: root.toString(), limit: 20 };
-  const hits = context ? await api.getRelevantCode(query, { ...options, maxCharacters: 12000 }) : await api.search(query, options);
+  const hits = context ? await api.getRepositoryMap?.(query.slice(0, 4000), options) ?? [] : await api.search(query, options);
   const local = await CodeFolder.create(root.fsPath); const matches = []; let remaining = 12000;
   for (const hit of hits) {
     if (!Number.isInteger(hit.startLine) || !Number.isInteger(hit.endLine) || hit.startLine < 1 || hit.endLine < hit.startLine || hit.endLine - hit.startLine > 200) continue;

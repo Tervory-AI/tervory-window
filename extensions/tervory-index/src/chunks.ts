@@ -43,3 +43,15 @@ export function chunks(file: string, text: string, symbols?: Span[]): Chunk[] {
   }
   return result;
 }
+
+// Compact symbol signatures reuse the existing parser's chunk boundaries.
+export function mapChunks(file:string,text:string,symbols?:Span[]):Chunk[] {
+  return chunks(file,text,symbols).flatMap(chunk=>{
+    const lines=chunk.text.split('\n');
+    const offset=lines.findIndex(line=>/\b(?:function|class|interface|type|enum|const|let|def|fn|func|struct|trait)\s+[A-Za-z_$]|^\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*\(/.test(line));
+    if(offset<0)return [];
+    const signature=lines[offset].trim();
+    if(Buffer.byteLength(signature)>500)return [];
+    return [{path:file,startLine:chunk.startLine+offset,endLine:Math.min(chunk.endLine,chunk.startLine+offset+11),text:signature}];
+  }).slice(0,256);
+}

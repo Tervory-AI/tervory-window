@@ -20,7 +20,7 @@ export async function activate(context:vscode.ExtensionContext) {
     await Promise.all([...indexes.values()].map(index=>index.dispose()));indexes.clear();
   })();
   deactivateCurrent=close;
-  const refresh = ():Promise<void> => {
+  const refresh = (mapOnly=false):Promise<void> => {
     if(disposed)return Promise.resolve();
     running = running.catch(e=>output.appendLine(String(e))).then(async () => {
       if (!vscode.workspace.isTrusted || !context.storageUri) return;
@@ -53,7 +53,7 @@ export async function activate(context:vscode.ExtensionContext) {
             });
           await index.restore(); indexes.set(folder.uri.fsPath,index);
         }
-        await index.refresh();
+        await index.refresh(mapOnly);
       }
     });
     return running;
@@ -62,7 +62,7 @@ export async function activate(context:vscode.ExtensionContext) {
   const watcher = vscode.workspace.createFileSystemWatcher('**/*');
   context.subscriptions.push(watcher,watcher.onDidCreate(schedule),watcher.onDidChange(schedule),watcher.onDidDelete(schedule),
     vscode.workspace.onDidChangeWorkspaceFolders(schedule),vscode.workspace.onDidGrantWorkspaceTrust(schedule),
-    vscode.commands.registerCommand('tervory.index.rebuild',refresh),
+    vscode.commands.registerCommand('tervory.index.rebuild',()=>refresh()),
     {dispose:()=>{void close();}});
   // Return promptly so the panel can activate us while a large project is indexing.
   void refresh().catch(e=>output.appendLine(String(e)));
@@ -80,6 +80,23 @@ export async function activate(context:vscode.ExtensionContext) {
         }
       }
       return results.sort((a,b)=>b.score-a.score).slice(0,Math.max(1,Math.min(50,options.limit??10)));
+    },
+    async hasSource(file,workspaceUri) {
+      if(!vscode.workspace.isTrusted)return false;
+      await running;
+      for(const [root,index] of indexes) if(vscode.Uri.file(root).toString()===workspaceUri)return index.hasSource(file);
+      return false;
+    },
+    async getRepositoryMap(query,options) {
+      if(!vscode.workspace.isTrusted || !options.workspaceUri)return [];
+      await refresh(true);
+      const results:CodeMatch[]=[];
+      for(const [root,index] of indexes) {
+        const uri=vscode.Uri.file(root);
+        if(uri.toString()!==options.workspaceUri)continue;
+        for(const hit of await index.repositoryMap(query,options.limit??40))results.push({...hit,uri:vscode.Uri.joinPath(uri,...hit.path.split('/')).toString()});
+      }
+      return results;
     },
     async getRelevantCode(query,options={}) {
       return budget(await api.search(query,{limit:options.limit??20,workspaceUri:options.workspaceUri}),options.maxCharacters);

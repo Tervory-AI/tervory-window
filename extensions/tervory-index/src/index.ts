@@ -3,17 +3,17 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createHash, randomUUID } from 'node:crypto';
-import { chunks, type Chunk, type Span } from './chunks';
+import { chunks, mapChunks, type Chunk, type Span } from './chunks';
 import { sources } from './files';
 import type { Embedder } from './embedding';
 const schema = {id:'string',path:'string',startLine:'number',endLine:'number',text:'string',vector:'vector[384]'} as const;
 // Bump when model identity, chunk boundaries or persisted schema changes.
-const cacheVersion=2;
+const cacheVersion=3;
 const fresh = () => create({schema});
 export type Hit = Chunk & {score:number};
 export class ProjectIndex {
   private db = fresh();
-  private files = new Map<string,{hash:string;ids:string[]}>();
+  private files = new Map<string,{hash:string;ids:string[];map:Chunk[];vectorHash?:string}>();
   private tail: Promise<unknown> = Promise.resolve();
   private closed = false;
   constructor(readonly root:string, private storage:string, private embedder:Embedder, private structure?:(file:string)=>Promise<Span[]>) {}
@@ -24,14 +24,14 @@ export class ProjectIndex {
       load(this.db,state.db); this.files = new Map(state.files);
     } catch { /* missing/incompatible cache: rebuild */ }
   }
-  refresh():Promise<void> {
-    const next = this.tail.then(() => this.sync());
+  refresh(mapOnly=false):Promise<void> {
+    const next = this.tail.then(() => this.sync(mapOnly));
     this.tail = next.catch(() => {}); return next;
   }
-  private async sync():Promise<void> {
+  private async sync(mapOnly:boolean):Promise<void> {
     if (this.closed) return;
     const seen = new Set<string>();
-    let pending:{path:string;hash:string;parts:Chunk[]}[]=[];
+    let pending:{path:string;hash:string;parts:Chunk[];map:Chunk[]}[]=[];
     let pendingSize=0;
     const flush=async()=>{
       const parts=pending.flatMap(f=>f.parts);
@@ -43,7 +43,7 @@ export class ProjectIndex {
         const old=this.files.get(file.path);
         if(old) await removeMultiple(this.db,old.ids);
         if(records.length) await insertMultiple(this.db,records);
-        this.files.set(file.path,{hash:file.hash,ids:records.map(r=>r.id)});
+        this.files.set(file.path,{hash:file.hash,ids:records.map(r=>r.id),map:file.map,vectorHash:file.hash});
       }
       pending=[];pendingSize=0;
     };
@@ -51,9 +51,15 @@ export class ProjectIndex {
       if (this.closed) return;
       seen.add(file.path);
       const hash = createHash('sha256').update(file.text).digest('hex');
-      if (this.files.get(file.path)?.hash === hash) continue;
-      const parts=chunks(file.path,file.text,await this.structure?.(file.path));
-      pending.push({path:file.path,hash,parts});pendingSize+=parts.length;
+      if (this.files.get(file.path)?.hash === hash && (mapOnly || this.files.get(file.path)?.vectorHash === hash)) continue;
+      const spans=await this.structure?.(file.path);
+      if(mapOnly) {
+        const old=this.files.get(file.path);
+        this.files.set(file.path,{hash,ids:old?.ids??[],map:mapChunks(file.path,file.text,spans),vectorHash:old?.vectorHash});
+        continue;
+      }
+      const parts=chunks(file.path,file.text,spans);
+      pending.push({path:file.path,hash,parts,map:mapChunks(file.path,file.text,spans)});pendingSize+=parts.length;
       if(pendingSize>=32 || pending.length>=32) await flush();
     }
     if(pending.length) await flush();
@@ -95,6 +101,20 @@ export class ProjectIndex {
     const [vector] = await this.embedder.embed([query]);
     const results = await search(this.db,{mode:'vector',vector:{value:vector,property:'vector'},similarity:0,limit});
     return results.hits.map(({document:d,score})=>({path:d.path,startLine:d.startLine,endLine:d.endLine,text:d.text,score}));
+  }
+  hasSource(file:string):boolean {return this.files.has(file);}
+  async repositoryMap(query:string,limit=40):Promise<Hit[]> {
+    await this.tail;
+    if(!query.trim() || query.length>4000)return [];
+    const words=[...new Set(query.toLowerCase().match(/[a-z_$][a-z0-9_$]{2,}/g)??[])];
+    const hits:Hit[]=[];
+    for(const [file,record] of this.files) for(const part of record.map??[]) {
+      const name=(file+' '+part.text).toLowerCase();
+      const score=words.reduce((n,word)=>n+(name.includes(word)?1:0),0);
+      if(score)hits.push({...part,score});
+    }
+    return hits.sort((a,b)=>b.score-a.score || (a.path<b.path?-1:a.path>b.path?1:0) || a.startLine-b.startLine)
+      .slice(0,Math.max(0,Math.min(50,Math.floor(limit)||0)));
   }
   get fileCount():number { return this.files.size; }
   async dispose():Promise<void> { this.closed=true; await this.tail; await this.embedder.dispose(); }

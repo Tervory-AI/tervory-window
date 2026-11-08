@@ -44,5 +44,6 @@ export async function* sources(root: string): AsyncGenerator<Source> {
       } catch { /* file removed during traversal */ }
     }
   }
+  if ((await fs.lstat(root)).isSymbolicLink()) return;
   yield* walk(await fs.realpath(root),[]);
 }
