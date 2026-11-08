@@ -1,4 +1,4 @@
-# Tervory desktop window
+# Opli Code
 
 Tervory reuses Code-OSS on Windows, macOS and Linux. The implementation is reviewed
 on `codex/window`; native installers remain unsigned until founder signing
@@ -35,9 +35,9 @@ libraries; ARM builds require Clang/LLD 23.1.6 (the exact Ubuntu package version
 and repository key checksum are pinned in `window.yml`). Installer dependency
 validation remains enabled. Build output is an
 unsigned portable archive in `dist`, with SHA256SUMS and build metadata.
-Check the checksum before extracting; launch Tervory.exe, Tervory.app, or bin/tervory.
+Check the checksum before extracting; launch Opli Code.exe, Opli Code.app, or bin/opli-code.
 
-`window-v<package.json version>` tags build all six distributions in CI.
+`opli-code-v<package.json version>` tags build all six distributions in CI.
 No release tag is created by these scripts. Until founder signing accounts are
 configured, distributions are explicitly unsigned; no notarization or
 Authenticode claim is made. Code-OSS third-party notices remain in each build.
@@ -62,3 +62,5 @@ macOS app bundles receive a free ad-hoc integrity seal after branding and built-
 extension installation, using the upstream entitlements. This is not Developer ID
 signing or notarization; installers remain unsigned and build metadata records
 `integritySignature: "ad-hoc"` separately from `signed: false`.
+
+The product name is **Opli Code**. Existing repository URLs, extension IDs, account storage, protocol and installer IDs remain stable so the rename does not orphan existing installations or integrations. New release tags use `opli-code-v<version>` and download artifacts use `opli-code-` names.

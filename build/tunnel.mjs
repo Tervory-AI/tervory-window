@@ -52,7 +52,7 @@ export async function installTunnel(source, built, pin) {
     env[`PKG_CONFIG_SYSROOT_DIR_${target.replaceAll('-', '_')}`] = sysroot;
   }
   run('cargo', [`+${pin.rust}`, 'build', '--locked', '--release', '--target', target, '--bin', 'code'], env);
-  const bin = process.platform === 'darwin' ? resolve(built, 'Tervory.app/Contents/Resources/app/bin') : resolve(built, 'bin');
+  const bin = process.platform === 'darwin' ? resolve(built, 'Opli Code.app/Contents/Resources/app/bin') : resolve(built, 'bin');
   await mkdir(bin, { recursive: true });
   const destination = resolve(bin, `tervory-tunnel${process.platform === 'win32' ? '.exe' : ''}`);
   await cp(resolve(cli, `target/${target}/release/code${process.platform === 'win32' ? '.exe' : ''}`), destination);

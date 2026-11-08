@@ -1,6 +1,6 @@
 {
   "name": "tervory-agents",
-  "displayName": "Tervory Agents",
+  "displayName": "Opli Code Agents",
   "description": "Background repository tasks through the Tervory worker server",
   "version": "0.1.0",
   "publisher": "tervory",
