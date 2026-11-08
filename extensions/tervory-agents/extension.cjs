@@ -5,7 +5,7 @@ const ORIGINS = { 'us-east': 'https://app.tervory.com', za: 'https://za.tervory.
 function activate(context) {
   async function call(path, body, method) {
     const panel = vscode.extensions.getExtension('tervory.tervory-panel');
-    if (!panel) throw new Error('Tervory panel is unavailable');
+    if (!panel) throw new Error('Opli Code panel is unavailable');
     const token = await (await panel.activate()).getSessionToken();
     const match = /^tv1\.(us-east|za)\.[0-9a-f]{32}\.[A-Za-z0-9_-]{43}$/.exec(token || '');
     if (!match) throw new Error('Trigger sign-in');

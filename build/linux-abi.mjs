@@ -1,8 +1,9 @@
 import { execFileSync } from 'node:child_process';
 import { readdir, open, readFile } from 'node:fs/promises';
 import { resolve, relative } from 'node:path';
+const product = JSON.parse(await readFile(new URL('../patches/product.json', import.meta.url), 'utf8'));
 export async function checkLinuxAbi(built, builtinIds) {
-  const files = [resolve(built, 'tervory'), resolve(built, 'bin/tervory-tunnel'), resolve(built, 'chrome-sandbox'), resolve(built, 'chrome_crashpad_handler')];
+  const files = [resolve(built, product.applicationName), resolve(built, 'bin/tervory-tunnel'), resolve(built, 'chrome-sandbox'), resolve(built, 'chrome_crashpad_handler')];
   async function visit(folder) {
     for (const item of await readdir(folder, { withFileTypes: true })) {
       const file = resolve(folder, item.name);

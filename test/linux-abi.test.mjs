@@ -11,7 +11,7 @@ test('Linux ABI discovery handles shared extension dependencies and still reject
   try{
     for(const name of ['bin','resources/app/node_modules.asar.unpacked','resources/app/extensions/node_modules','resources/app/extensions/fixture','resources/app/extensions/optional'])await mkdir(resolve(built,name),{recursive:true});
     // The pinned portable Node runtime has the same GLIBC 2.28 baseline.
-    for(const name of ['tervory','bin/tervory-tunnel','chrome-sandbox','chrome_crashpad_handler'])await symlink(process.execPath,resolve(built,name));
+    for(const name of ['opli-code','bin/tervory-tunnel','chrome-sandbox','chrome_crashpad_handler'])await symlink(process.execPath,resolve(built,name));
     await writeFile(resolve(built,'resources/app/extensions/fixture/package.json'),JSON.stringify({publisher:'tervory',name:'fixture'}));
     await writeFile(resolve(built,'resources/app/extensions/optional/package.json'),JSON.stringify({publisher:'upstream',name:'optional'}));
     const incompatible='/usr/bin/true';

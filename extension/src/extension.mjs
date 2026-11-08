@@ -53,7 +53,7 @@ export async function activate(vscode, context) {
   async function signIn(selected) {
     const region = ['us-east', 'za'].includes(selected) ? { value: selected } : await vscode.window.showQuickPick([{ label: 'US', value: 'us-east' }, { label: 'ZA', value: 'za' }], { title: 'Trigger sign-in' });
     if (!region) return;
-    await client.run(['login', '--region', region.value], { store, io: { interactive: true, write: text => { const code = /Confirm the page shows code ([A-Za-z0-9-]+)\./.exec(String(text)); if (code) send({ type: 'deviceCode', code: code[1] }); }, deviceName: () => 'Tervory desktop', open: url => vscode.env.openExternal(vscode.Uri.parse(url)) } });
+    await client.run(['login', '--region', region.value], { store, io: { interactive: true, write: text => { const code = /Confirm the page shows code ([A-Za-z0-9-]+)\./.exec(String(text)); if (code) send({ type: 'deviceCode', code: code[1] }); }, deviceName: () => 'Opli Code', open: url => vscode.env.openExternal(vscode.Uri.parse(url)) } });
     send({ type: 'auth', signedIn: !!(await store.get()) });
   }
   async function reviewEdit(local, patch, signal) {
@@ -111,7 +111,7 @@ export async function activate(vscode, context) {
               commandText = client.safe(redactSecrets(request.arguments.command)) + '\nFolder: ' + local.root;
               if (!terminal) {
                 terminalOutput = new vscode.EventEmitter();
-                terminal = vscode.window.createTerminal({ name: 'Tervory commands', pty: { onDidWrite: terminalOutput.event, open() {}, close() { session?.abort.abort(); terminal = undefined; terminalOutput?.dispose(); terminalOutput = undefined; } } });
+                terminal = vscode.window.createTerminal({ name: 'Opli Code commands', pty: { onDidWrite: terminalOutput.event, open() {}, close() { session?.abort.abort(); terminal = undefined; terminalOutput?.dispose(); terminalOutput = undefined; } } });
               }
               terminal.show(true);
               const commandIO = { ...toolIO, write: value => { toolIO.write(value); terminalOutput?.fire(client.safe(redactSecrets(value)).replace(/\r?\n/g, '\r\n')); } };
