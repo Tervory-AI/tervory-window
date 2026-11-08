@@ -4,6 +4,13 @@ const { execFileSync } = require('node:child_process');
 const { runTests } = require('@vscode/test-electron');
 (async () => {
   const root = path.resolve(__dirname, '..');
+  const index = path.resolve(root, '../tervory-index');
+  // This dev-host suite now exercises the shared index API as well as the panel.
+  // Reuse its lock and compiler; map-only context needs no model assets.
+  if (process.env.TERVORY_BUILT_WINDOW !== '1') {
+    execFileSync(process.execPath, [process.env.npm_execpath, 'ci', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: index, stdio: 'inherit' });
+    execFileSync(process.execPath, [process.env.npm_execpath, 'run', 'build'], { cwd: index, stdio: 'inherit' });
+  }
   const tmp = path.resolve(root, '../../.tmp');
   await fs.mkdir(tmp, { recursive: true });
   const scratch = await fs.mkdtemp(path.join(tmp, 'complete-electron-'));
