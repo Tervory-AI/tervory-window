@@ -5,6 +5,8 @@ import { cli, InputQueue, hunks, selectedDiff } from './session.mjs';
 import { projectMatches } from './project-index.mjs';
 import { resolve, relative, isAbsolute, sep } from 'node:path';
 import { boundedContext, CONTEXT_LIMITS } from './project-context.mjs';
+import { gateTransport } from './gate.mjs';
+import { signInState, expiredSignIn, EXPIRED } from './sign-in.mjs';
 
 export async function activate(vscode, context) {
   const client = await cli('client.mjs');
@@ -81,8 +83,31 @@ export async function activate(vscode, context) {
     const region = ['us-east', 'za'].includes(selected) ? { value: selected } : await vscode.window.showQuickPick([{ label: 'US', value: 'us-east' }, { label: 'ZA', value: 'za' }], { title: 'Trigger sign-in' });
     if (!region) return;
     await client.run(['login', '--region', region.value], { store, io: { interactive: true, write: text => { const code = /Confirm the page shows code ([A-Za-z0-9-]+)\./.exec(String(text)); if (code) send({ type: 'deviceCode', code: code[1] }); }, deviceName: () => 'Opli Code', open: url => vscode.env.openExternal(vscode.Uri.parse(url)) } });
-    send({ type: 'auth', signedIn: !!(await store.get()) });
+    send({ type: 'auth', ...(await signInState(store)) });
   }
+  const decisions = new Map();
+  const quoteView = info => ({
+    status: info.status, waiting: !!info.waiting, reason: client.safe(redactSecrets(String(info.reason ?? ''))),
+    task: Number.isInteger(info.task) ? info.task : undefined, tasks: Number.isInteger(info.tasks) ? info.tasks : undefined,
+    quote: info.quote ? { rung: info.quote.rung, tokens_in: info.quote.tokens_in_estimate, tokens_out: info.quote.tokens_out_limit,
+      cost_usd: typeof info.quote.cost_usd_estimate === 'number' ? info.quote.cost_usd_estimate : null,
+      price_status: client.safe(String(info.quote.price_status ?? '')),
+      files: (Array.isArray(info.quote.files) ? info.quote.files : []).slice(0, 20).map(file => client.safe(redactSecrets(String(file)))) } : undefined,
+  });
+  // The gate-before client: quotes and holds from Tank, slim turns and progress evidence.
+  const gated = signal => gateTransport((url, init) => fetch(url, init), {
+    folder,
+    onQuote: info => { if (!info.waiting) send({ type: 'quote', ...quoteView(info) }); },
+    onHold: info => send({ type: 'hold', ...quoteView(info) }),
+    decide: info => new Promise(done => {
+      const id = randomBytes(16).toString('hex');
+      const finish = allowed => { signal.removeEventListener('abort', cancel); decisions.delete(id); done(allowed); };
+      const cancel = () => finish(false);
+      decisions.set(id, finish); signal.addEventListener('abort', cancel, { once: true });
+      if (signal.aborted) return cancel();
+      send({ type: 'quote', id, ...quoteView(info) });
+    }),
+  });
   async function reviewEdit(local, patch, signal) {
     const files = splitDiff(patch); const cards = []; let index = 0;
     for (const file of files) {
@@ -124,7 +149,7 @@ export async function activate(vscode, context) {
       },
     };
     try {
-      const tank = new client.Tank(await client.session(store), fetch, abort.signal);
+      const tank = new client.Tank(await client.session(store), gated(abort.signal), abort.signal);
       await codeSession(tank, folder(), 'auto', io, receipt => { lastReceipt = receipt; send({ type: 'receipt', receipt }); return client.receiptLines(receipt); }, client.safe, {
         createFolder: async root => {
           const local = await CodeFolder.create(root); const tool = local.tool.bind(local);
@@ -173,10 +198,11 @@ export async function activate(vscode, context) {
       context.subscriptions.push(view.webview.onDidReceiveMessage(async message => {
         try {
           if (!message || typeof message.type !== 'string') return;
+          if (message.type === 'quoteDecision' && decisions.has(message.id) && typeof message.approved === 'boolean') { decisions.get(message.id)(message.approved); return; }
           if (message.type === 'approve' && approval && message.id === approval.id && typeof message.approved === 'boolean') { approval.finish(message.approved); return; }
-          if (message.type === 'cancel') { approval?.finish(false); session?.abort.abort(); session?.input.close(); review?.done(new Set()); return; }
+          if (message.type === 'cancel') { for (const finish of [...decisions.values()]) finish(false); approval?.finish(false); session?.abort.abort(); session?.input.close(); review?.done(new Set()); return; }
           if (message.type === 'signIn') { await signIn(message.region); return; }
-          if (message.type === 'ready') { send({ type: 'auth', signedIn: !!(await store.get()) }); return; }
+          if (message.type === 'ready') { send({ type: 'auth', ...(await signInState(store)) }); return; }
           if (message.type === 'newChat') { searchMatches = []; session?.abort.abort(); session?.input.close(); review?.done(new Set()); send({ type: 'newChat' }); return; }
           if (message.type === 'search') { await search(message.query); return; }
           if (message.type === 'searchOpen' && Number.isInteger(message.index) && searchMatches[message.index]) {
@@ -223,7 +249,7 @@ export async function activate(vscode, context) {
             }
             return;
           }
-          if (message.type === 'signOut') { session?.abort.abort(); session?.input.close(); await client.run(['logout'], { store, io: { write } }); return; }
+          if (message.type === 'signOut') { session?.abort.abort(); session?.input.close(); await client.run(['logout'], { store, io: { write() {} } }); send({ type: 'auth', signedIn: false }); return; }
           if (message.type === 'preview' && review) {
             const card = review.cards.find(card => card.name === message.name);
             if (card) await vscode.commands.executeCommand('vscode.diff', vscode.Uri.parse(card.before), vscode.Uri.parse(card.after), card.name);
@@ -249,7 +275,11 @@ export async function activate(vscode, context) {
             if (session) throw Error('Finish or stop the code conversation first.');
             await ask(text);
           } else await startCode(text);
-        } catch (error) { busy = false; write(error.message); send({ type: 'error', text: client.safe(redactSecrets(error.message)), offline: error.message === 'Tank connection failed.' }); send({ type: 'ready' }); }
+        } catch (error) {
+          busy = false;
+          // An expired or revoked sign-in returns to the sign-in screen instead of failing silently.
+          if (expiredSignIn(error)) { send({ type: 'auth', signedIn: false, expired: true, reason: EXPIRED }); send({ type: 'ready' }); return; }
+          write(error.message); send({ type: 'error', text: client.safe(redactSecrets(error.message)), offline: error.message === 'Tank connection failed.' }); send({ type: 'ready' }); }
       }));
       context.subscriptions.push(view.onDidDispose(() => { approval?.finish(false); session?.abort.abort(); session?.input.close(); review?.done(new Set()); view = undefined; }));
     },

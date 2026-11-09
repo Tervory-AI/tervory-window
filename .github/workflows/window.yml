@@ -47,6 +47,10 @@ jobs:
     env:
       NODE_OPTIONS: --max-old-space-size=8192
       GITHUB_TOKEN: ${{ github.token }}
+      # Signing runs on release tags only, and only when the founder has added these
+      # repository secrets. Without them the installers stay unsigned.
+      MAC_SIGNING: ${{ github.event_name == 'push' && secrets.APPLE_DEVELOPER_ID_CERTIFICATE != '' && secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD != '' }}
+      WINDOWS_SIGNING: ${{ github.event_name == 'push' && secrets.WINDOWS_CERTIFICATE != '' && secrets.WINDOWS_CERTIFICATE_PASSWORD != '' }}
     defaults:
       run:
         shell: bash
@@ -97,11 +101,46 @@ jobs:
           compiler_version='1:23.1.6~++20261103094202+2875c6073a7e-1~exp1~20261103214217.95'
           sudo apt-get install -y "clang-23=$compiler_version" "lld-23=$compiler_version"
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Developer ID certificate (release tags with signing secrets only)
+        if: runner.os == 'macOS' && env.MAC_SIGNING == 'true'
+        env:
+          CERTIFICATE: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/opli-signing.keychain-db"
+          printf '%s' "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
+          security create-keychain -p "$CERTIFICATE_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$CERTIFICATE_PASSWORD" "$keychain"
+          security import "$RUNNER_TEMP/developer-id.p12" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          rm -f "$RUNNER_TEMP/developer-id.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$CERTIFICATE_PASSWORD" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          identity=$(security find-identity -v -p codesigning "$keychain" | awk '/Developer ID Application/ {print $2; exit}')
+          if [ -z "$identity" ]; then echo 'The certificate has no Developer ID Application identity.'; exit 1; fi
+          echo "OPLI_MAC_IDENTITY=$identity" >> "$GITHUB_ENV"
+      - name: Windows code-signing certificate (release tags with signing secrets only)
+        if: runner.os == 'Windows' && env.WINDOWS_SIGNING == 'true'
+        env:
+          CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+        run: |
+          printf '%s' "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/windows-signing.pfx"
+          echo "OPLI_WINDOWS_CERTIFICATE_FILE=$RUNNER_TEMP/windows-signing.pfx" >> "$GITHUB_ENV"
       - name: Build native installer
         id: native_build
+        env:
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ env.WINDOWS_SIGNING == 'true' && secrets.WINDOWS_CERTIFICATE_PASSWORD || '' }}
+          APPLE_NOTARY_APPLE_ID: ${{ env.MAC_SIGNING == 'true' && secrets.APPLE_NOTARY_APPLE_ID || '' }}
+          APPLE_NOTARY_PASSWORD: ${{ env.MAC_SIGNING == 'true' && secrets.APPLE_NOTARY_PASSWORD || '' }}
+          APPLE_NOTARY_TEAM_ID: ${{ env.MAC_SIGNING == 'true' && secrets.APPLE_NOTARY_TEAM_ID || '' }}
         run: |
           if [ '${{ runner.os }}' = Linux ]; then xvfb-run -a npm run build; else npm run build; fi
-      - name: Boot the built window and run fake Tank acceptance
+      - name: Remove signing material
+        if: always() && (env.MAC_SIGNING == 'true' || env.WINDOWS_SIGNING == 'true')
+        run: |
+          rm -f "$RUNNER_TEMP/windows-signing.pfx" "$RUNNER_TEMP/developer-id.p12"
+          if [ '${{ runner.os }}' = macOS ]; then security delete-keychain "$RUNNER_TEMP/opli-signing.keychain-db" || true; fi
+      - name: Boot the built window and run fake Tank acceptance, smoke test signs in, sends one request, shows a quote and the answer
         run: |
           if [ '${{ runner.os }}' = Linux ]; then xvfb-run -a node test/boot.mjs; else node test/boot.mjs; fi
       - name: Collect sanitized startup diagnostics
@@ -133,3 +172,32 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 30
+  release:
+    # A tag push builds all six installers above, then drafts a release for the
+    # founder to publish. Nothing here publishes a release.
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/opli-code-v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: mkdir -p .tmp
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24.22.1'
+      - name: Download the six native builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'opli-code-*-unsigned' --dir .tmp/artifacts
+      - name: Installers, archives, SHA256SUMS and notes
+        run: node build/release.mjs .tmp/artifacts .tmp/release "${GITHUB_REF_NAME#opli-code-v}"
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mapfile -t assets < <(find .tmp/release -type f ! -name NOTES.md | sort)
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "Opli Code ${GITHUB_REF_NAME#opli-code-v}" --notes-file .tmp/release/NOTES.md "${assets[@]}"
