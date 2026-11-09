@@ -98,7 +98,14 @@ jobs:
           sudo install -m 644 .tmp/llvm-key.gpg /usr/share/keyrings/tervory-llvm.gpg
           echo 'deb [arch=arm64 signed-by=/usr/share/keyrings/tervory-llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' | sudo tee /etc/apt/sources.list.d/tervory-llvm.list
           sudo apt-get update
-          compiler_version='1:23.1.6~++20261103094202+2875c6073a7e-1~exp1~20261103214217.95'
+          # apt.llvm.org keeps only its latest LLVM 23 snapshot, so an exact pin stops
+          # resolving within days. Take the signed repository's current build (key
+          # checksum-pinned above), require clang and lld to match, and log it.
+          compiler_version=$(apt-cache policy clang-23 | awk '/Candidate:/ {print $2}')
+          linker_version=$(apt-cache policy lld-23 | awk '/Candidate:/ {print $2}')
+          case "$compiler_version" in 1:23.*) ;; *) echo "No LLVM 23 compiler in the repository: $compiler_version"; exit 1 ;; esac
+          if [ "$compiler_version" != "$linker_version" ]; then echo "clang-23 $compiler_version and lld-23 $linker_version differ"; exit 1; fi
+          echo "LLVM 23 snapshot $compiler_version"
           sudo apt-get install -y "clang-23=$compiler_version" "lld-23=$compiler_version"
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Developer ID certificate (release tags with signing secrets only)
