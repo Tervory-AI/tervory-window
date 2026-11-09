@@ -14,7 +14,7 @@ export async function scenario(name, activatePanel = activate) {
   const root = await mkdtemp(join(tmpdir(),'window-proof-'));
   execFileSync('git',['init','-q',root]);
   for(const file of ['file.txt','second.txt'])await writeFile(join(root,file),'old\n');
-  let message; let disposed; let api; let round=0; let region='us-east'; let prompt='Confirm'; const calls=[]; const outputs=[]; const previews=[]; const terminals=[];
+  let message; let disposed; let api; const approvals=[]; let round=0; let region='us-east'; let prompt='Confirm'; const calls=[]; const outputs=[]; const previews=[]; const terminals=[];
   const secrets=new Map([['tervory.session',token(region)]]);
   const original=globalThis.fetch;
   const uri = value=>({scheme:value.startsWith('tervory-diff:')?'tervory-diff':'file',fsPath:value,toString:()=>value});
@@ -54,8 +54,17 @@ export async function scenario(name, activatePanel = activate) {
       assert.equal(body.model,'auto');assert(body.text.includes('file.txt'));assert(body.text.includes('old'));
       return new Response('event: token\ndata: '+JSON.stringify({text:'Project answer.'})+'\n\nevent: receipt\ndata: '+JSON.stringify(receipt)+'\n\nevent: done\ndata: {}\n\n',{headers:{'Content-Type':'text/event-stream'}});
     }
+    if(parsed.pathname.includes('/paid-steps/approvals/')){assert.equal(parsed.pathname,'/v1/command/paid-steps/approvals/placeholder-approval');approvals.push(body);return Response.json({id:'placeholder-approval',state:body.approve?'approved':'denied'});}
     if(parsed.pathname.endsWith('/code-turn')) {
       assert.equal(body.model,'auto');
+      if(name==='expired')return new Response('',{status:401});
+      if(name==='quote'||name==='smoke'){
+        // tank/code_preflight.py: a held turn carries the plan and quote; Ask waits for approval.
+        const quote={rung:3,tokens_in_estimate:4210,tokens_out_limit:2000,cost_usd_estimate:0.0123,price_status:'priced',files:['file.txt'],basis:'Local estimate'};
+        if(!body.continuation)return Response.json({answer:'The plan and quote for task 1 of 1 are ready.',requests:[],cards:[],preflight:{status:'awaiting_approval',message:'The plan and quote for task 1 of 1 are ready.',task:1,tasks:1,plan:{files:['file.txt']},quote,approval_id:'placeholder-approval'},receipt:{rows:[]},turn:{model:'Auto',cost_usd:0}});
+        assert.deepEqual(body.tool_results,[]);assert.equal(approvals.length,1);
+        return Response.json({answer:'Quoted answer.',receipt,requests:[]});
+      }
       if(name==='command'||name==='command-deny'){
         if(body.continuation){const result=JSON.parse(body.tool_results[0].output).result;assert.equal(result.ran,name==='command');if(result.ran)assert(result.output.includes('panel-command'));return Response.json({answer:'Command finished.',receipt,requests:[]});}
         return Response.json({answer:'',receipt,requests:[{name:'run_command',arguments:{command:'echo panel-command'}}]});
@@ -81,6 +90,36 @@ export async function scenario(name, activatePanel = activate) {
       await writeFile(join(root,'.tervory/rules'),'Updated project rule.');await message({type:'code',text:'Explain again'});await until(()=>outputs.filter(item=>item.type==='ready').length>=2);
       const turns=calls.filter(item=>item.path.endsWith('/code-turn')&&!item.body.continuation);assert.equal(turns.length,2);assert(turns[0].body.text.includes('Use clear names.'));assert(turns[1].body.text.includes('Updated project rule.'));assert(turns.every(turn=>turn.body.text.includes('Repository project notes DATA')));
       await message({type:'cancel'});await running;
+    }
+    else if(name==='quote'||name==='smoke'){
+      if(name==='smoke'){
+        // Signed out → Trigger sign-in through the CLI's device login → one request → quote → answer.
+        secrets.clear();await message({type:'ready'});assert(outputs.some(x=>x.type==='auth'&&x.signedIn===false));
+        await message({type:'signIn',region:'us-east'});assert(outputs.some(x=>x.type==='deviceCode'&&x.code==='BCDF-GHJK'));
+        assert(outputs.some(x=>x.type==='auth'&&x.signedIn===true));
+      }
+      const running=message({type:'code',text:'Change old to new in file.txt'});
+      await until(()=>outputs.some(x=>x.type==='quote'&&x.id));
+      const quote=outputs.find(x=>x.type==='quote'&&x.id);
+      assert.deepEqual(quote.quote,{rung:3,tokens_in:4210,tokens_out:2000,cost_usd:0.0123,price_status:'priced',files:['file.txt']});
+      assert.equal(quote.waiting,true);assert.match(quote.reason,/needs approval/);
+      assert(!outputs.some(x=>x.text?.includes('Quoted answer.')),'Ask waits for approval before the paid call');
+      await message({type:'quoteDecision',id:quote.id,approved:true});
+      await until(()=>outputs.some(x=>x.text?.includes('Quoted answer.')));
+      assert.deepEqual(approvals,[{approve:true,reason:'Approved in Opli Code'}]);
+      assert(!JSON.stringify(outputs).match(/zitadel|auth0|okta|google|microsoft/i),'No identity provider name is shown');
+      await message({type:'cancel'});await running;
+    }
+    else if(name==='expired'){
+      // An expired stored sign-in shows the sign-in screen with a reason; a refused token does the same mid-chat.
+      secrets.set('tervory.session',JSON.stringify({version:1,region:'us-east',access_token:token(region),refresh_token:`tvr1.us-east.${'1'.repeat(32)}.${('placeholder'+'r'.repeat(43)).slice(0,43)}`,expires_at:new Date(Date.now()-7200000).toISOString(),refresh_expires_at:new Date(Date.now()-3600000).toISOString()}));
+      await message({type:'ready'});
+      assert(outputs.some(x=>x.type==='auth'&&x.signedIn===false&&x.expired===true&&/Trigger sign-in again/.test(x.reason)));
+      assert.equal(calls.length,0);
+      secrets.set('tervory.session',token(region));
+      await message({type:'code',text:'Explain file.txt'});
+      assert(outputs.filter(x=>x.type==='auth'&&x.expired===true).length===2,'A refused token asks to sign in again');
+      assert(!outputs.some(x=>x.type==='error'),'No silent or raw failure');
     }
     else if(name==='search'){await message({type:'search',query:'old'});const result=outputs.find(item=>item.type==='search');assert.deepEqual(result.matches,[{path:'file.txt',startLine:1,endLine:1,text:'old'}]);await message({type:'searchOpen',index:0});assert(previews.some(args=>args[0].fsPath?.endsWith('file.txt')));assert.equal(calls.length,0);}
     else if(name==='index-context'){const running=message({type:'code',text:'Explain this project'});await until(()=>outputs.some(x=>x.type==='ready'));const turn=calls.find(x=>x.path.endsWith('/code-turn'));assert(turn.body.text.includes('Project context DATA'));assert(turn.body.text.includes('old'));assert(!turn.body.text.includes('cached text'));assert(!turn.body.text.includes('.git/config'));await message({type:'cancel'});await running;}

@@ -8,7 +8,10 @@ import { installTunnel } from './tunnel.mjs';
 import { linuxEnvironment } from './native-environment.mjs';
 import { checkLinuxAbi } from './linux-abi.mjs';
 import { sealMacApp } from './macos-integrity.mjs';
+import { signingPlan, signMacApp, signMacImage, notarize, signWindows } from './signing.mjs';
 const platform = process.platform; const arch = process.arch;
+const signing = signingPlan();
+console.log(signing.signed ? `Signing this ${platform} build.` : `Unsigned ${platform} build: no signing settings.`);
 if (!['win32', 'darwin', 'linux'].includes(platform) || !['x64', 'arm64'].includes(arch)) throw Error('Unsupported build host');
 if (process.versions.node.split('.')[0] !== pin.node.split('.')[0]) throw Error(`Use Node ${pin.node}`);
 await prepare();
@@ -29,13 +32,18 @@ await installTunnel(source, built, pin);
 const resources = platform === 'darwin' ? resolve(built, 'Opli Code.app/Contents/Resources/app') : resolve(built, 'resources/app');
 await rm(resolve(resources, 'extensions/copilot'), { recursive: true, force: true });
 const builtinIds = await installExtensions(root, resources);
-if (platform === 'darwin') await sealMacApp(source, resolve(built, 'Opli Code.app'));
+if (platform === 'darwin') {
+  if (signing.signed) await signMacApp(source, resolve(built, 'Opli Code.app'), signing.identity);
+  else await sealMacApp(source, resolve(built, 'Opli Code.app'));
+}
+if (platform === 'win32' && signing.signed) signWindows(resolve(built, 'Opli Code.exe'), signing);
 const out = resolve(root, 'dist'); await mkdir(out, { recursive: true });
 // Use the upstream platform installers. Signing stays off until configured.
 if (platform === 'win32') {
   npm(['run', 'gulp', '--', `vscode-win32-${arch}-inno-updater`]);
   npm(['run', 'gulp', '--', `vscode-win32-${arch}-user-setup`]);
   await cp(resolve(source, `.build/win32-${arch}/user-setup/VSCodeSetup.exe`), resolve(out, `opli-code-win32-${arch}-setup.exe`));
+  if (signing.signed) signWindows(resolve(out, `opli-code-win32-${arch}-setup.exe`), signing);
 } else if (platform === 'linux') {
   await checkLinuxAbi(built, builtinIds);
   npm(['run', 'gulp', '--', `vscode-linux-${arch}-prepare-deb`]);
@@ -55,6 +63,10 @@ if (platform === 'win32') {
     }
   }
 }
+if (platform === 'darwin' && signing.signed) {
+  signMacImage(resolve(out, `opli-code-darwin-${arch}.dmg`), signing.identity);
+  if (signing.notarize) notarize(resolve(out, `opli-code-darwin-${arch}.dmg`));
+}
 const file = `opli-code-${platform}-${arch}.tar.gz`;
 const archiveTool = platform === 'win32' ? resolve(process.env.SystemRoot, 'System32/tar.exe') : 'tar';
 execFileSync(archiveTool, ['-czf', file, '-C', built, '.'], { cwd: out, stdio: 'inherit' });
@@ -64,5 +76,5 @@ for (const name of await readdir(out)) {
   sums += `${createHash('sha256').update(await readFile(resolve(out, name))).digest('hex')}  ${name}\n`;
 }
 await writeFile(resolve(out, 'SHA256SUMS'), sums);
-await writeFile(resolve(out, 'build.json'), JSON.stringify({ upstream: pin, platform, arch, signed: false, integritySignature: platform === 'darwin' ? 'ad-hoc' : undefined, files: await readdir(out) }, null, 2));
+await writeFile(resolve(out, 'build.json'), JSON.stringify({ upstream: pin, platform, arch, signed: signing.signed, notarized: !!signing.notarize, integritySignature: platform === 'darwin' ? (signing.signed ? 'developer-id' : 'ad-hoc') : undefined, files: await readdir(out) }, null, 2));
 console.log(resolve(out, file));

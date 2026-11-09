@@ -47,6 +47,24 @@ test('approved panel states render safely and send the matching actions',async()
   assert.deepEqual(await page.evaluate(()=>calls.at(-1)),{type:'search',query:'new'});
   await post({type:'newChat'});await post({type:'error',offline:true});await post({type:'ready'});
   assert(await page.getByText('Connection lost.').isVisible());assert(await page.getByRole('button',{name:'Send',exact:true}).isDisabled());
+  await post({type:'newChat'});await post({type:'ready'});
+  await post({type:'quote',id:'q1',status:'awaiting_approval',waiting:true,reason:'This paid step needs approval before the model call.',task:1,tasks:2,quote:{rung:3,tokens_in:4210,tokens_out:2000,cost_usd:0.0123,price_status:'priced',files:['<b>file.txt</b>']}});
+  assert(await page.getByText('Cost quote · waiting for approval').isVisible());
+  assert(await page.getByText('Rung 3 · about 4210 tokens in, up to 2000 out').isVisible());
+  assert(await page.getByText('Estimated cost: $0.0123').isVisible());assert(await page.getByText('Task 1 of 2').isVisible());
+  assert.equal(await page.locator('main b').count(),0);
+  await page.getByRole('button',{name:'Approve',exact:true}).click();
+  assert.deepEqual(await page.evaluate(()=>calls.at(-1)),{type:'quoteDecision',id:'q1',approved:true});
+  assert.equal(await page.getByRole('button',{name:'Approve',exact:true}).count(),0);
+  await post({type:'hold',status:'needs_files',waiting:false,reason:'Tank could not tell which files to change.'});
+  assert(await page.getByText('Stopped before the model call').isVisible());assert(await page.getByText('Tank could not tell which files to change.').isVisible());
+  await page.getByRole('button',{name:'Sign out',exact:true}).click();
+  assert.equal(await page.evaluate(()=>calls.at(-1).type),'signOut');
+  await post({type:'auth',signedIn:false,expired:true,reason:'Your sign-in has expired. Trigger sign-in again to continue.'});
+  assert(await page.getByText('Your sign-in has expired. Trigger sign-in again to continue.').isVisible());
+  assert(await page.getByRole('button',{name:'Sign out',exact:true}).isHidden());
+  await page.screenshot({path:'.tmp/panel-quote.png'});
+  await post({type:'auth',signedIn:true});await post({type:'newChat'});await post({type:'error',offline:true});await post({type:'ready'});
   await page.screenshot({path:'.tmp/panel-offline.png'});
  }finally{await browser.close();}
 });
